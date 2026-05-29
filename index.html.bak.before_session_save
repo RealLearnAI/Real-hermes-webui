@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes WebUI</title>
+<style>
+/* === RESET & BASE === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: #1a1d23;
+  color: #c8ccd4;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* === LAYOUT === */
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+/* LEFT SIDEBAR */
+.sidebar-left {
+  width: 240px;
+  min-width: 240px;
+  background: #16191f;
+  border-right: 1px solid #2a2e38;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-profile {
+  padding: 16px;
+  border-bottom: 1px solid #2a2e38;
+  text-align: center;
+}
+
+.agent-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  overflow: hidden;
+  border: 2px solid #4ade80;
+}
+
+.agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8ecf2;
+  margin-bottom: 2px;
+}
+
+.agent-desc {
+  font-size: 11px;
+  color: #7a7f8c;
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.new-session-btn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: #2a2e38;
+  border: 1px dashed #4ade80;
+  border-radius: 6px;
+  color: #4ade80;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.new-session-btn:hover {
+  background: #323744;
+}
+
+.session-item {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #a8adc4;
+  transition: all .15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.session-item:hover { background: #2a2e38; }
+.session-item.active { background: #2a2e38; color: #4ade80; border-left: 2px solid #4ade80; }
+
+.session-del {
+  opacity: 0;
+  font-size: 12px;
+  cursor: pointer;
+  color: #7a7f8c;
+}
+
+.session-item:hover .session-del { opacity: 1; }
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #1a1d23;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.message {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.message.user { flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.message.assistant .msg-avatar { background: linear-gradient(135deg, #4ade80, #22d3ee); color: #1a1d23; }
+.message.user .msg-avatar { background: #3b3f4c; color: #e8ecf2; }
+
+.msg-bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.message.assistant .msg-bubble { background: #2a2e38; color: #c8ccd4; border-top-left-radius: 4px; }
+.message.user .msg-bubble { background: #25a068; color: #fff; border-top-right-radius: 4px; }
+
+.msg-bubble img, .msg-bubble video {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+/* Markdown rendering */
+.msg-bubble p { margin-bottom: 8px; }
+.msg-bubble p:last-child { margin-bottom: 0; }
+.msg-bubble strong { color: #e8ecf2; font-weight: 600; }
+.msg-bubble em { color: #a8adc4; font-style: italic; }
+.msg-bubble code.inline-code {
+  background: #1e222b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #facc15;
+}
+.msg-bubble pre.code-block {
+  background: #121419;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  overflow-x: auto;
+  position: relative;
+}
+.msg-bubble pre.code-block code {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c8ccd4;
+}
+.msg-bubble pre.code-block .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #2a2e38;
+  border: none;
+  color: #7a7f8c;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.msg-bubble pre.code-block .copy-btn:hover { background: #3b3f4c; color: #4ade80; }
+.msg-bubble ul, .msg-bubble ol { padding-left: 20px; margin: 8px 0; }
+.msg-bubble li { margin-bottom: 4px; line-height: 1.6; }
+.msg-bubble a { color: #22d3ee; text-decoration: none; }
+.msg-bubble a:hover { text-decoration: underline; }
+.msg-bubble hr { border: none; border-top: 1px solid #2a2e38; margin: 12px 0; }
+
+/* Syntax highlighting classes */
+.hl-keyword { color: #c678dd; }
+.hl-string { color: #e6db74; }
+.hl-number { color: #bd93f9; }
+.hl-comment { color: #546e7a; font-style: italic; }
+.hl-function { color: #82aaff; }
+.hl-type { color: #ffcb6b; }
+.hl-operator { color: #89ddff; }
+.hl-punctuation { color: #89ddff; }
+
+/* Tool call display */
+.tool-call {
+  background: #1e222b;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.tool-call .tool-name { color: #facc15; font-weight: 600; }
+.tool-call .tool-status.running { color: #f97316; }
+.tool-call .tool-status.completed { color: #4ade80; }
+.tool-call .tool-status.failed { color: #ef4444; }
+
+/* INPUT AREA */
+.input-area {
+  padding: 16px 20px;
+  background: #16191f;
+  border-top: 1px solid #2a2e38;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.input-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-buttons-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 70px;
+  height: 80px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.input-buttons-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 70px;
+  height: 80px;
+  gap: 4px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+#msgInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: #2a2e38;
+  border: 1px solid #3b3f4c;
+  border-radius: 8px;
+  color: #e8ecf2;
+  font-size: 14px;
+  outline: none;
+  resize: none;
+  min-height: 80px;
+  max-height: 200px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+#msgInput:focus { border-color: #4ade80; }
+
+.btn-action {
+  width: 70px;
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+
+.btn-send { background: #25a068; color: #fff; }
+.btn-send:hover:not(:disabled) { background: #34d078; }
+.btn-send.steer-mode { background: #facc15; color: #1a1d23; }
+.btn-send.steer-mode:hover:not(:disabled) { background: #fde047; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-stop { background: #3b3f4c; color: #7a7f8c; cursor: not-allowed; }
+.btn-stop.active { background: #ef4444; color: #fff; cursor: pointer; }
+.btn-stop.active:hover { background: #f87171; }
+
+.btn-icon {
+  width: 70px;
+  flex: 1;
+  min-height: 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+
+.btn-attach { background: #3b3f4c; color: #a8adc4; }
+.btn-attach:hover { background: #4ade80; color: #1a1d23; }
+
+/* RIGHT SIDEBAR */
+.sidebar-right {
+  width: 280px;
+  min-width: 280px;
+  background: #16191f;
+  border-left: 1px solid #2a2e38;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.panel-section {
+  padding: 16px;
+  border-bottom: 1px solid #2a2e38;
+}
+
+.panel-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #7a7f8c;
+  margin-bottom: 10px;
+}
+
+.gpu-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.gpu-label { font-size: 13px; color: #a8adc4; }
+.gpu-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.gpu-temp .gpu-value { color: #facc15; }
+.gpu-util .gpu-value { color: #22d3ee; }
+.gpu-mem .gpu-value { color: #ef4444; }
+
+/* Progress bars */
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: #2a2e38;
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill-temp {
+  height: 100%;
+  background: linear-gradient(90deg, #facc15, #ef4444);
+  border-radius: 3px;
+  transition: width .5s;
+}
+
+.progress-bar-fill-util {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #facc15);
+  border-radius: 3px;
+  transition: width .5s;
+}
+
+.mem-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: #2a2e38;
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.mem-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #ef4444);
+  border-radius: 3px;
+  transition: width .5s;
+}
+
+/* Token stats */
+.token-stat {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.token-big { font-size: 28px; font-weight: 700; color: #4ade80; font-variant-numeric: tabular-nums; }
+.token-unit { font-size: 12px; color: #7a7f8c; }
+
+.prompt-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #2a2e38;
+  border-radius: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.prompt-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #facc15, #ef4444);
+  border-radius: 4px;
+  transition: width .3s;
+}
+
+/* Log panel */
+.log-panel {
+  flex: 1;
+  min-height: 150px;
+}
+
+#logContent {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  color: #7a7f8c;
+  line-height: 1.5;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #121419;
+  border-radius: 6px;
+}
+
+.log-line.error { color: #ef4444; }
+.log-line.warn { color: #facc15; }
+.log-line.info { color: #22d3ee; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3b3f4c; border-radius: 3px; }
+
+/* Preview area for uploads */
+.preview-area {
+  display: flex;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #16191f;
+}
+
+.preview-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 2px solid #4ade80;
+}
+
+.file-preview {
+  padding: 6px 10px;
+  background: #2a2e38;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #a8adc4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Typing indicator */
+.typing-dots span {
+  animation: blink 1.4s infinite both;
+  font-size: 20px;
+  color: #4ade80;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes blink {
+  0%, 50% { opacity: 0.2; }
+  50%, 100% { opacity: 1; }
+}
+
+/* Context status panel */
+.ctx-panel { padding: 4px 0; }
+
+.ctx-compress-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e222b;
+  border: 1px solid #3b3f4c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.ctx-compress-label {
+  font-size: 12px;
+  color: #7a7f8c;
+}
+
+.ctx-compress-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #facc15;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctx-progress-bg {
+  width: 100%;
+  height: 10px;
+  background: #2a2e38;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.ctx-progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width .4s ease, background .4s ease;
+  background: linear-gradient(90deg, #4ade80 0%, #22d3ee 50%, #ef4444 100%);
+}
+
+.ctx-tokens-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #a8adc4;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Speed Card */
+.speed-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.speed-item {
+  background: #2a2e38;
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+}
+.speed-item-label {
+  font-size: 10px;
+  color: #7a7f8c;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.speed-item-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.speed-item-unit {
+  font-size: 10px;
+  color: #7a7f8c;
+  margin-left: 2px;
+}
+.speed-prompt .speed-item-value { color: #22d3ee; }
+.speed-predicted .speed-item-value { color: #4ade80; }
+.speed-avg .speed-item-value { font-size: 16px; }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- LEFT SIDEBAR -->
+<div class="sidebar-left">
+  <div class="agent-profile">
+    <div class="agent-avatar"><img src="/static/avatar.jpg" alt="Hermes"></div>
+    <div class="agent-name">Hermes Agent</div>
+    <div class="agent-desc">Digital Assistant</div>
+  </div>
+  <div class="session-list" id="sessionList">
+    <button class="new-session-btn" onclick="createSession()">+ 新对话</button>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+  <div class="chat-messages" id="chatMessages"></div>
+
+  <!-- Preview area for pending uploads -->
+  <div class="preview-area" id="previewArea" style="display:none;"></div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <!-- Left: Upload buttons (symmetric to right) -->
+      <div class="input-buttons-left">
+        <button class="btn-icon btn-attach" title="上传图片" onclick="document.getElementById('imgUpload').click()">🖼</button>
+        <input type="file" id="imgUpload" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event)">
+        <button class="btn-icon btn-attach" title="上传文件" onclick="document.getElementById('fileUpload').click()">📎</button>
+        <input type="file" id="fileUpload" style="display:none;" onchange="handleFileSelect(event)">
+      </div>
+
+      <!-- Center: Textarea -->
+      <div class="input-center">
+        <textarea id="msgInput" placeholder="输入消息... (Enter发送, Shift+Enter换行)" onkeydown="handleInputKey(event)"></textarea>
+      </div>
+
+      <!-- Right: Send/Stop buttons with steer menu -->
+      <div class="input-buttons-right">
+        
+
+        <button class="btn-action btn-send" id="sendBtn" onclick="sendMessage()">发送</button>
+        <button class="btn-action btn-stop" id="stopBtn" onclick="abortGeneration()" disabled>中止</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT SIDEBAR -->
+<div class="sidebar-right">
+
+  <!-- GPU Monitor -->
+    <div class="panel-section">
+      <div class="panel-title">GPU 监控</div>
+      <div class="gpu-stat gpu-temp">
+        <span class="gpu-label">温度</span>
+        <span class="gpu-value" id="gpuTemp">--°C</span>
+      </div>
+      <canvas id="tempChart" width="240" height="50" style="width:100%;height:50px;margin-top:4px;"></canvas>
+      <div class="gpu-stat gpu-util">
+        <span class="gpu-label">核心利用率</span>
+        <span class="gpu-value" id="gpuUtil">--%</span>
+      </div>
+      <canvas id="utilChart" width="240" height="50" style="width:100%;height:50px;margin-top:4px;"></canvas>
+      <div class="gpu-stat gpu-mem">
+        <span class="gpu-label">显存占用</span>
+        <span class="gpu-value" id="gpuMem">-- MB</span>
+      </div>
+      <canvas id="memChart" width="240" height="50" style="width:100%;height:50px;margin-top:4px;"></canvas>
+    </div>
+
+   <!-- Context Status Panel -->
+     <div class="panel-section">
+       <div class="panel-title">上下文状态</div>
+       <div class="ctx-panel">
+         <div class="ctx-compress-box">
+           <span class="ctx-compress-label">⚡ 压缩次数</span>
+           <span class="ctx-compress-value" id="compressCount">0</span>
+         </div>
+         <div class="ctx-progress-bg">
+           <div class="ctx-progress-fill" id="ctxProgressFill" style="width:0%"></div>
+         </div>
+         <div class="ctx-tokens-text">
+           <span id="ctxCurrentTokens">--</span>
+           <span id="ctxTotalTokens">/ --</span>
+         </div>
+         <div style="margin-top:8px;">
+              <div class="ctx-tokens-text" style="margin-bottom:4px;">
+                <span style="color:#7a7f8c;">累计生成</span>
+                <span></span>
+              </div>
+              <div class="ctx-progress-bg">
+                <div class="ctx-progress-fill" id="totalTokFill" style="width:0%;"></div>
+              </div>
+              <div class="ctx-tokens-text">
+                <span id="totalTok" style="color:#facc15;">0</span>
+                <span id="totalTokMax" style="color:#7a7f8c;">/ --</span>
+              </div>
+              </div>
+              </div>
+              <!-- Speed Card -->
+              <div class="speed-card">
+              <div class="speed-item speed-prompt">
+              <div class="speed-item-label">Prompt 速度</div>
+              <div><span class="speed-item-value" id="speedPromptCum">--</span><span class="speed-item-unit">tok/s</span></div>
+              </div>
+              <div class="speed-item speed-predicted">
+              <div class="speed-item-label">生成 速度</div>
+              <div><span class="speed-item-value" id="speedPredictedCum">--</span><span class="speed-item-unit">tok/s</span></div>
+              </div>
+              <div class="speed-item speed-prompt speed-avg">
+              <div class="speed-item-label">Prompt 近20次</div>
+              <div><span class="speed-item-value" id="speedPromptAvg">--</span><span class="speed-item-unit">tok/s</span></div>
+              </div>
+              <div class="speed-item speed-predicted speed-avg">
+              <div class="speed-item-label">生成 近20次</div>
+              <div><span class="speed-item-value" id="speedPredictedAvg">--</span><span class="speed-item-unit">tok/s</span></div>
+              </div>
+              </div>
+              </div>
+              <!-- Log Panel -->
+       <div class="panel-section log-panel" style="flex:1;">
+    <div class="panel-title">日志</div>
+    <div id="logContent"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// === STATE ===
+let sessions = [];
+let currentSession = null;
+let conversationHistory = []; // messages array for API
+let abortController = null;
+let pendingFiles = [];
+let  = '';
+let tokenCountThisTurn = 0;
+let turnStartTime = 0;
+let llamaTotalTokens = 0;       // Cumulative tokens from llama.cpp metrics
+let activeRunId = null;          // Current run id from /v1/runs
+let eventsSource = null;
+let ctxNContext = 0;           // CTX limit from /metrics n_context
+let ctxCurrentTokens = 0;     // Current prompt tokens from SSE usage
+let compressCount = 0;        // Compression count (detected by prompt_tokens drop)
+let speedHistory = { prompt: [], predicted: [] };  // Last 20 speed readings
+         // EventSource for SSE stream
+
+// === INIT ===
+document.addEventListener('DOMContentLoaded', () => {
+  loadSessions();
+   startGPUMonitor();
+   startLlamaMetricsMonitor();
+  fetchCtxLimit();
+
+  // Auto-resize textarea as user types
+  const ta = document.getElementById('msgInput');
+  if (ta) {
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    });
+  }
+});
+
+// === SESSIONS ===
+async function loadSessions() {
+  try {
+    const r = await fetch('/api/sessions');
+    sessions = await r.json();
+    renderSessionList();
+    if (sessions.length && !currentSession) switchToSession(sessions[sessions.length - 1].id);
+  } catch(e) { log('Failed to load sessions', 'error'); }
+}
+
+function renderSessionList() {
+  const list = document.getElementById('sessionList');
+  // Keep the new session button
+  let html = '<button class="new-session-btn" onclick="createSession()">+ 新对话</button>';
+  for (const s of sessions) {
+    html += `<div class="session-item ${s.id === currentSession?.id ? 'active' : ''}" data-id="${s.id}">
+      <span onclick="switchToSession('${s.id}')">${esc(s.title)}</span>
+      <span class="session-del" onclick="deleteSession('${s.id}')">×</span>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+async function createSession() {
+  const r = await fetch('/api/sessions', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: '新对话'}) });
+  const s = await r.json();
+  sessions.push(s);
+  renderSessionList();
+  switchToSession(s.id);
+}
+
+async function deleteSession(id) {
+  await fetch('/api/sessions/' + id, { method: 'DELETE' });
+  sessions = sessions.filter(s => s.id !== id);
+  if (currentSession && currentSession.id === id) {
+    currentSession = null;
+    conversationHistory = [];
+    document.getElementById('chatMessages').innerHTML = '';
+  }
+  renderSessionList();
+}
+
+function switchToSession(id) {
+  const s = sessions.find(s => s.id === id);
+  if (!s) return;
+  currentSession = s;
+  conversationHistory = s.messages || [];
+  // Render messages
+  const msgDiv = document.getElementById('chatMessages');
+  msgDiv.innerHTML = '';
+  for (const m of conversationHistory) {
+    appendMessage(m.role, m.content, false);
+  }
+  renderSessionList();
+  scrollChatBottom();
+}
+
+// === CHAT ===
+function appendMessage(role, content, animate = true) {
+  const msgDiv = document.getElementById('chatMessages');
+  const isUser = role === 'user';
+  
+  let html = `<div class="message ${role}">`;
+  html += `<div class="msg-avatar">${isUser ? 'U' : '<img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">'}</div>`;
+  html += `<div class="msg-bubble" id="bubble-${Date.now()}">${formatContent(content)}</div>`;
+  html += `</div>`;
+  
+  msgDiv.insertAdjacentHTML('beforeend', html);
+  scrollChatBottom();
+}
+
+function formatContent(text) {
+  if (!text) return '';
+
+  // First, extract and protect code blocks
+  const codeBlocks = [];
+  let processed = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    const language = lang || 'text';
+    const highlighted = highlightSyntax(esc(code.trim()), language);
+    codeBlocks.push(`<pre class="code-block" data-lang="${language}"><button class="copy-btn" onclick="copyCode(this)">复制</button><code>${highlighted}</code></pre>`);
+    return `%%CODEBLOCK_${idx}%%`;
+  });
+
+  // Handle inline code (before other markdown)
+  processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+  // Bold and italic
+  processed = processed.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  processed = processed.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Links
+  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+  // Images (data URLs and /uploads/ paths)
+  processed = processed.replace(/!\[([^\]]*)\]\((data:[^"]+|\/uploads\/[^"]+)\)/g, '<img src="$2" alt="$1">');
+
+  // Horizontal rules
+  processed = processed.replace(/^---$/gm, '<hr>');
+
+  // Unordered lists
+  processed = processed.replace(/^(?:[-*+])\s+(.+)$/gm, '<li>$1</li>');
+  processed = processed.replace(/((?:<li>.+<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+  // Ordered lists
+  processed = processed.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+  // Headings
+  processed = processed.replace(/^### (.+)$/gm, '<strong style="font-size:15px;color:#e8ecf2;">$1</strong>');
+  processed = processed.replace(/^## (.+)$/gm, '<strong style="font-size:17px;color:#4ade80;">$1</strong>');
+  processed = processed.replace(/^# (.+)$/gm, '<strong style="font-size:19px;color:#22d3ee;">$1</strong>');
+
+  // Paragraphs (double newlines)
+  processed = processed.replace(/\n\n/g, '</p><p>');
+  processed = processed.replace(/\n/g, '<br>');
+
+  // Wrap in paragraph if not already wrapped
+  if (!processed.startsWith('<')) {
+    processed = '<p>' + processed + '</p>';
+  }
+
+  // Restore code blocks
+  for (let i = 0; i < codeBlocks.length; i++) {
+    processed = processed.replace(`%%CODEBLOCK_${i}%%`, codeBlocks[i]);
+  }
+
+  return processed;
+}
+
+// Simple syntax highlighter (no dependencies)
+function highlightSyntax(code, language) {
+  const lang = language.toLowerCase();
+
+  // Common patterns across languages
+  const patterns = [
+    // Comments
+    { regex: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#([^\n])*)/g, cls: 'hl-comment' },
+    // Strings (single and double quoted)
+    { regex: /(&quot;[^&]*(?:&#39;[^&]*)*&quot;|&#39;[^&]*(?:&quot;[^&]*)*&#39;|"[^"]*"|'[^']*')/g, cls: 'hl-string' },
+    // Numbers
+    { regex: /\b(\d+\.?\d*(?:e[+-]?\d+)?)\b/gi, cls: 'hl-number' },
+  ];
+
+  const langPatterns = {
+    javascript: [
+      { regex: /\b(const|let|var|function|async|await|return|if|else|for|while|do|switch|case|break|continue|new|class|extends|import|from|export|default|try|catch|finally|throw|typeof|instanceof|in|of|null|undefined|true|false|this|yield)\b/g, cls: 'hl-keyword' },
+      { regex: /\b(console|document|window|Math|JSON|Array|Object|String|Number|Boolean|Promise|Map|Set|Date|RegExp|Error|Symbol|parseInt|parseFloat|setTimeout|setInterval|fetch)\b/g, cls: 'hl-type' },
+      { regex: /\b([a-zA-Z_$][\w$]*)\s*(?=\()/g, cls: 'hl-function' },
+    ],
+    python: [
+      { regex: /\b(def|class|import|from|as|return|if|elif|else|for|while|try|except|finally|raise|with|yield|lambda|pass|break|continue|and|or|not|in|is|None|True|False|self|async|await|global|nonlocal)\b/g, cls: 'hl-keyword' },
+      { regex: /\b(print|len|range|int|str|float|list|dict|set|tuple|type|isinstance|enumerate|zip|map|filter|sorted|reversed|open|input|super|property|staticmethod|classmethod)\b/g, cls: 'hl-function' },
+      { regex: /\b([a-zA-Z_]\w*)\s*(?=\()/g, cls: 'hl-function' },
+    ],
+    typescript: [
+      { regex: /\b(const|let|var|function|async|await|return|if|else|for|while|do|switch|case|break|continue|new|class|extends|import|from|export|default|try|catch|finally|throw|typeof|instanceof|in|of|null|undefined|true|false|this|yield|string|number|boolean|any|void|never|enum|interface|type|implements|private|protected|public|readonly|keyof|infer)\b/g, cls: 'hl-keyword' },
+      { regex: /\b(console|document|window|Math|JSON|Array|Object|String|Number|Boolean|Promise|Map|Set|Date|RegExp|Error|Symbol|setTimeout|setInterval|fetch)\b/g, cls: 'hl-type' },
+      { regex: /\b([a-zA-Z_$][\w$]*)\s*(?=\()/g, cls: 'hl-function' },
+    ],
+    bash: [
+      { regex: /\b(sudo|chmod|chown|mkdir|rmdir|cp|mv|rm|ls|cat|grep|sed|awk|find|curl|wget|git|docker|npm|pip|python|node|echo|export|source|alias|if|then|else|fi|for|while|do|done|case|esac|function|return|exit|set|unset|shift|test|\[\])\b/g, cls: 'hl-keyword' },
+      { regex: /(\$[a-zA-Z_]\w*|\$\{[^}]+\}|\$[0-9])/g, cls: 'hl-type' },
+    ],
+    json: [
+      { regex: /\b([a-zA-Z_]\w*)\s*(?=:)/g, cls: 'hl-keyword' },
+      { regex: /\b(true|false|null)\b/g, cls: 'hl-keyword' },
+    ],
+    html: [
+      { regex: /(&lt;\/?[a-zA-Z][\w-]*)/g, cls: 'hl-keyword' },
+      { regex: /\b([a-zA-Z-]+)(?==)/g, cls: 'hl-function' },
+    ],
+    css: [
+      { regex: /\b([a-zA-Z-]+)(?=:)/g, cls: 'hl-function' },
+      { regex: /\b(important|auto|none|inherit|initial|revert|unset)\b/g, cls: 'hl-keyword' },
+    ],
+  };
+
+  // Escape HTML first (already done by esc(), but just in case)
+  let result = code;
+
+  // Apply language-specific patterns first
+  if (langPatterns[lang]) {
+    for (const p of langPatterns[lang]) {
+      result = result.replace(p.regex, `<span class="${p.cls}">$1</span>`);
+    }
+  } else if (lang === 'ts') {
+    for (const p of langPatterns.typescript) {
+      result = result.replace(p.regex, `<span class="${p.cls}">$1</span>`);
+    }
+  } else if (lang === 'sh' || lang === 'shell') {
+    for (const p of langPatterns.bash) {
+      result = result.replace(p.regex, `<span class="${p.cls}">$1</span>`);
+    }
+  } else if (lang === 'py') {
+    for (const p of langPatterns.python) {
+      result = result.replace(p.regex, `<span class="${p.cls}">$1</span>`);
+    }
+  }
+
+  // Apply common patterns (lower priority)
+  for (const p of patterns) {
+    result = result.replace(p.regex, `<span class="${p.cls}">$1</span>`);
+  }
+
+  return result;
+}
+
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('code');
+  const text = code.textContent || code.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已复制!';
+    setTimeout(() => { btn.textContent = '复制'; }, 2000);
+  });
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+let bubbleCounter = 0;
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  let text = input.value.trim();
+  input.value = '';
+
+  if (!text) return;
+
+  conversationHistory.push({ role:'user', content:text });
+  appendMessage('user', text);
+
+  // Create assistant bubble with typing animation
+  const msgDiv = document.getElementById('chatMessages');
+  bubbleCounter++;
+  const userBubbleId = 'bubble-user-' + Date.now();
+  const assistantBubbleId = 'bubble-assistant-' + bubbleCounter;
+  // Re-do user message with unique ID (remove last and re-add)
+  const lastMsg = msgDiv.lastElementChild;
+  if (lastMsg && lastMsg.classList.contains('user')) {
+    const userClone = lastMsg.cloneNode(true);
+    const userBubble = userClone.querySelector('.msg-bubble');
+    if (userBubble) userBubble.id = userBubbleId;
+    lastMsg.remove();
+    msgDiv.appendChild(userClone);
+  }
+  msgDiv.insertAdjacentHTML('beforeend', `<div class="message assistant" id="msgAssistant"><div class="msg-avatar"><img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"></div><div class="msg-bubble" id="${assistantBubbleId}"><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div></div>`);
+  const bubble = document.getElementById(assistantBubbleId);
+  let fullText = '';
+
+  // Reset token counters for this turn
+  tokenCountThisTurn = 0;
+  turnStartTime = Date.now();
+
+  try {
+    const resp = await fetch('/v1/runs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input:text, conversation_history:conversationHistory.slice(0,-1) }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+
+    const runData = await resp.json();
+    activeRunId = runData.run_id;
+    log(`Run started: ${activeRunId}`, 'info');
+
+    // Get button refs for state management
+    const sendBtn = document.getElementById('sendBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    stopBtn.disabled = false;
+    stopBtn.classList.add('active');
+
+    // Subscribe to events SSE stream
+    await subscribeToEvents(activeRunId, bubble, () => fullText, (t) => { fullText = t; });
+
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      appendMessage('assistant', `⚠ Error: ${e.message}`);
+      log(`Run error: ${e.message}`, 'error');
+    }
+  } finally {
+    activeRunId = null;
+    sendBtn.disabled = false;
+    stopBtn.disabled = true;
+    stopBtn.classList.remove('active');
+    updateTokenSpeed();
+  }
+}
+
+// Subscribe to /v1/runs/{run_id}/events SSE stream
+async function subscribeToEvents(runId, bubble, getFT, setFT) {
+  return new Promise((resolve) => {
+    eventsSource = new EventSource(`/v1/runs/${runId}/events`);
+    // All gateway SSE events come as data: lines (no event: prefix)
+    // so they all arrive via onmessage — we dispatch by parsing JSON.event field
+    eventsSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Handle usage data for context tracking
+        if (data.usage && data.usage.prompt_tokens !== undefined) {
+          const prevTokens = ctxCurrentTokens;
+          ctxCurrentTokens = data.usage.prompt_tokens;
+          
+          // Detect compression: significant drop in prompt tokens
+          if (prevTokens > 0 && ctxCurrentTokens < prevTokens * 0.7) {
+            compressCount++;
+            document.getElementById('compressCount').textContent = compressCount;
+            log(`Compression detected (#${compressCount}): ${prevTokens.toLocaleString()} -> ${ctxCurrentTokens.toLocaleString()}`, 'warn');
+          }
+          
+          // Update context progress bar and text
+          updateContextPanel();
+        }
+        
+        handleRunEvent(data, bubble, getFT, setFT);
+        if (data.event === 'run.completed') { cleanupRun(bubble, getFT()); resolve(); }
+        if (data.event === 'run.failed') { bubble.innerHTML+=`<br>⚠ Failed: ${esc((data.error||'?'))}`; cleanupRun(bubble, getFT()); resolve(); }
+        if (data.event === 'run.cancelled') { cleanupRun(bubble, getFT()); resolve(); }
+      } catch(e) {}
+    };
+    setTimeout(() => { cleanupRun(bubble, getFT()); resolve(); }, 300000);
+  });
+}
+
+function handleRunEvent(data, bubble, getFT, setFT) {
+  const evt = data.event;
+  if (evt==='message.delta') { const d=data.delta||''; if(d){ setFT(getFT()+d); tokenCountThisTurn++; bubble.innerHTML=formatContent(getFT()); scrollChatBottom(); updateTokenSpeed(); } }
+  if (evt==='hermes.tool.progress') appendToolCall(data);
+}
+
+function cleanupRun(bubble, fullText) {
+  conversationHistory.push({ role:'assistant', content:fullText });
+  if(currentSession) currentSession.messages=[...conversationHistory]; saveSessions();
+  if(eventsSource){ eventsSource.close(); eventsSource=null; }
+  activeRunId = null;
+  updateTokenSpeed(); scrollChatBottom();
+}
+
+function showApprovalUI(data) { /* placeholder */ }
+
+function abortGeneration() {
+  if(eventsSource){ eventsSource.close(); eventsSource=null; }
+  if(activeRunId){ fetch(`/v1/runs/${activeRunId}/stop`,{method:'POST'}).catch(()=>{}); activeRunId=null; }
+  const sendBtn = document.getElementById('sendBtn');
+  if(sendBtn) sendBtn.disabled = false;
+  const sb = document.getElementById('stopBtn');
+  if(sb){ sb.disabled = true; sb.classList.remove('active'); }
+}
+function handleInputKey(e) {
+  // Shift+Enter: newline (let textarea handle it naturally)
+  if (e.key === 'Enter' && e.shiftKey) {
+    // Don't preventDefault — let the textarea insert a newline
+    return;
+  }
+
+  // Enter alone: send message or steer
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendMessage();
+    return;
+  }
+}
+function appendToolCall(td) {
+  const msgDiv = document.getElementById('chatMessages');
+  const emoji = td.emoji || '🔧';
+  const label = td.label || td.tool || '';
+  const status = td.status || 'running';
+  
+  let toolId = `tool-${td.toolCallId || Date.now()}`;
+  let existing = document.getElementById(toolId);
+  
+  if (!existing) {
+    msgDiv.insertAdjacentHTML('beforeend', `<div class="tool-call" id="${toolId}">
+      <span class="tool-name">${emoji} ${esc(label)}</span> · 
+      <span class="tool-status ${status}" data-tool="${toolId}">${status}</span>
+      <pre style="margin-top:4px;font-size:11px;color:#7a7f8c;display:none;" id="${toolId}-out"></pre>
+    </div>`);
+  }
+  
+  const statusEl = document.querySelector(`[data-tool="${toolId}"]`);
+  if (statusEl) statusEl.textContent = status;
+  
+  scrollChatBottom();
+}
+
+// === FILE UPLOADS ===
+async function handleFileSelect(event) {
+  const files = event.target.files;
+  if (!files.length) return;
+
+  for (const file of files) {
+    // Images and videos: use DataURL for instant preview
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pendingFiles.push({ name: file.name, url: e.target.result, type: file.type });
+        renderPreviews();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Other files: upload via API endpoint
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const r = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!r.ok) throw new Error(`Upload failed: ${r.status}`);
+        const data = await r.json();
+
+        if (data.files && data.files[0]) {
+          pendingFiles.push(data.files[0]);
+          renderPreviews();
+        }
+      } catch(e) {
+        log('Upload failed: ' + e.message, 'error');
+      }
+    }
+  }
+
+  event.target.value = '';
+}
+
+function renderPreviews() {
+  const area = document.getElementById('previewArea');
+  if (!pendingFiles.length) {
+    area.style.display = 'none';
+    return;
+  }
+  
+  area.style.display = 'flex';
+  let html = '';
+  
+  for (const f of pendingFiles) {
+    if (f.type && f.type.startsWith('image/')) {
+      html += `<img src="${f.url}" class="preview-thumb">`;
+    } else if (f.type && f.type.startsWith('video/')) {
+      html += `<video src="${f.url}" class="preview-thumb"></video>`;
+    } else {
+      html += `<div class="file-preview">📄 ${esc(f.name)}</div>`;
+    }
+  }
+  
+  area.innerHTML = html;
+}
+
+function clearPendingFiles() {
+  pendingFiles = [];
+  document.getElementById('previewArea').style.display = 'none';
+  document.getElementById('previewArea').innerHTML = '';
+}
+
+// === GPU MONITOR ===
+const CHART_POINTS = 30; // Keep last 30 data points per chart
+let gpuHistory = { temp: [], util: [], mem: [] };
+
+// Draw a line chart on a canvas element
+function drawLineChart(canvasId, data, color, yMin, yMax) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  
+  ctx.clearRect(0, 0, w, h);
+  
+  // Background grid lines (3 horizontal lines)
+  ctx.strokeStyle = '#2a2e38';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = Math.round(h / 4 * i);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  
+  if (data.length < 2) return;
+  
+  // Draw line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  
+  const range = yMax - yMin || 1;
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (CHART_POINTS - 1)) * w;
+    const v = Math.max(yMin, Math.min(yMax, data[i]));
+    const y = h - ((v - yMin) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Gradient fill under line
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color.replace(')', ',0.3)').replace('rgb', 'rgba'));
+  grad.addColorStop(1, color.replace(')', ',0)').replace('rgb', 'rgba'));
+  ctx.lineTo((data.length - 1) / (CHART_POINTS - 1) * w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+async function startGPUMonitor() {
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/gpu');
+      const d = await r.json();
+      
+      document.getElementById('gpuTemp').textContent = `${d.temperature}°C`;
+      
+      document.getElementById('gpuUtil').textContent = `${d.utilization}%`;
+      
+      const memMB = d.memoryUsedMB;
+      const totalMB = d.memoryTotalMB || 32768;
+      document.getElementById('gpuMem').textContent = `${memMB} MB`;
+      const pct = Math.round((memMB / totalMB) * 100);
+      
+      // Push to history arrays
+      gpuHistory.temp.push(d.temperature);
+      gpuHistory.util.push(d.utilization);
+      gpuHistory.mem.push(pct);
+      if (gpuHistory.temp.length > CHART_POINTS) gpuHistory.temp.shift();
+      if (gpuHistory.util.length > CHART_POINTS) gpuHistory.util.shift();
+      if (gpuHistory.mem.length > CHART_POINTS) gpuHistory.mem.shift();
+      
+      // Draw charts
+      drawLineChart('tempChart', gpuHistory.temp, 'rgb(250,204,21)', 30, 90);
+      drawLineChart('utilChart', gpuHistory.util, 'rgb(34,211,238)', 0, 100);
+      drawLineChart('memChart', gpuHistory.mem, 'rgb(239,68,68)', 0, 100);
+    } catch (e) { /* skip */ }
+  }, 1000);
+}
+
+function formatMem(mb) {
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+}
+
+// === TOKEN SPEED ===
+function updateTokenSpeed() {
+  const elapsed = (Date.now() - turnStartTime) / 1000;
+  const speed = elapsed > 0 ? Math.round(tokenCountThisTurn / elapsed * 10) / 10 : 0;
+
+  const totalTokEl = document.getElementById('totalTok');
+  if (totalTokEl) totalTokEl.textContent = llamaTotalTokens.toLocaleString();
+}
+
+// === LLAMA.CPP METRICS ===
+// Update context status panel
+function updateContextPanel() {
+  const fillEl = document.getElementById('ctxProgressFill');
+  const currentEl = document.getElementById('ctxCurrentTokens');
+  const totalEl = document.getElementById('ctxTotalTokens');
+  
+  if (!fillEl || !currentEl || !totalEl) return;
+  
+  let pct = 0;
+  let currentText = ctxCurrentTokens.toLocaleString() + ' tokens';
+  let totalText = '/ --';
+  
+  if (ctxNContext > 0) {
+    pct = Math.min(100, (ctxCurrentTokens / ctxNContext) * 100);
+    totalText = ` / ${ctxNContext.toLocaleString()}`;
+  }
+  
+  // Dynamic gradient based on usage percentage
+  let gradient;
+  if (pct < 40) {
+    gradient = 'linear-gradient(90deg, #4ade80 0%, #22d3ee 100%)';
+  } else if (pct < 75) {
+    gradient = 'linear-gradient(90deg, #4ade80 0%, #facc15 60%, #ef4444 100%)';
+  } else {
+    gradient = 'linear-gradient(90deg, #facc15 0%, #ef4444 100%)';
+  }
+  
+  fillEl.style.width = pct + '%';
+  fillEl.style.background = gradient;
+  currentEl.textContent = currentText;
+  totalEl.textContent = totalText;
+}
+
+// Fetch CTX limit from llama.cpp /models endpoint — n_ctx is in data[0].meta
+async function fetchCtxLimit() {
+  try {
+    const r = await fetch('/llama/models');
+    const data = await r.json();
+    // n_ctx is in data[0].meta, not models[0] (models[] omits meta)
+    let ctxSize = null;
+    if (data.data && data.data.length > 0) {
+      ctxSize = data.data[0].meta?.n_ctx || null;
+    }
+    if (!ctxSize && data.models && data.models.length > 0) {
+      ctxSize = data.models[0].meta?.n_ctx || data.models[0].details?.n_ctx || null;
+    }
+    if (ctxSize && ctxSize > 0) {
+      ctxNContext = ctxSize;
+      updateContextPanel();
+    }
+  } catch(e) {
+    log('Failed to fetch CTX limit: ' + e.message, 'error');
+  }
+}
+
+async function startLlamaMetricsMonitor() {
+  let prevNtokensMax = 0;
+  setInterval(async () => {
+    try {
+      const r = await fetch('/llama/metrics');
+      const text = await r.text();
+
+      // Parse Prometheus-style metrics
+      function getValue(key) {
+        const re = new RegExp(`^${key}\\s+(\\S+)`, 'm');
+        const m = text.match(re);
+        return m ? parseFloat(m[1]) : null;
+      }
+
+      const promptTokTotal = getValue('llamacpp:prompt_tokens_total');
+       const predictTokTotal = getValue('llamacpp:tokens_predicted_total');
+       const promptTokS = getValue('llamacpp:prompt_tokens_seconds');
+       const predictTokS = getValue('llamacpp:predicted_tokens_seconds');
+       const nTokensMax = getValue('llamacpp:n_tokens_max');
+
+       // Update cumulative tokens display (prompt + predicted)
+         if (promptTokTotal !== null && predictTokTotal !== null) {
+           llamaTotalTokens = Math.round(promptTokTotal + predictTokTotal);
+           const totalTokEl = document.getElementById('totalTok');
+           if (totalTokEl) totalTokEl.textContent = llamaTotalTokens.toLocaleString();
+
+           // Progress bar: max = ctxNContext * 10, same style as context panel
+           const fillEl = document.getElementById('totalTokFill');
+           const maxEl = document.getElementById('totalTokMax');
+           if (fillEl && ctxNContext > 0) {
+             const maxTokens = ctxNContext * 10;
+             const pct = Math.min(100, (llamaTotalTokens / maxTokens) * 100);
+             fillEl.style.width = pct + '%';
+             let gradient;
+             if (pct < 40) {
+               gradient = 'linear-gradient(90deg, #4ade80 0%, #22d3ee 100%)';
+             } else if (pct < 75) {
+               gradient = 'linear-gradient(90deg, #4ade80 0%, #facc15 60%, #ef4444 100%)';
+             } else {
+               gradient = 'linear-gradient(90deg, #facc15 0%, #ef4444 100%)';
+             }
+             fillEl.style.background = gradient;
+             if (maxEl) maxEl.textContent = `/ ${maxTokens.toLocaleString()}`;
+           }
+         }
+
+          // Update speed card: cumulative + last-20 average
+         if (promptTokS !== null && predictTokS !== null) {
+           // Cumulative speed (direct from metrics)
+           const spCum = document.getElementById('speedPromptCum');
+           const spPredCum = document.getElementById('speedPredictedCum');
+           if (spCum) spCum.textContent = promptTokS.toFixed(1);
+           if (spPredCum) spPredCum.textContent = predictTokS.toFixed(1);
+
+           // Track last 20 readings for average
+           speedHistory.prompt.push(promptTokS);
+           speedHistory.predicted.push(predictTokS);
+           if (speedHistory.prompt.length > 20) speedHistory.prompt.shift();
+           if (speedHistory.predicted.length > 20) speedHistory.predicted.shift();
+
+           const avgPrompt = speedHistory.prompt.reduce((a, b) => a + b, 0) / speedHistory.prompt.length;
+           const avgPredicted = speedHistory.predicted.reduce((a, b) => a + b, 0) / speedHistory.predicted.length;
+
+           const spAvg = document.getElementById('speedPromptAvg');
+           const spPredAvg = document.getElementById('speedPredictedAvg');
+           if (spAvg) spAvg.textContent = avgPrompt.toFixed(1);
+           if (spPredAvg) spPredAvg.textContent = avgPredicted.toFixed(1);
+         }
+
+          // Fetch CTX limit from /v1/models
+       try {
+         const modelsR = await fetch('/v1/models');
+         const modelsData = await modelsR.json();
+         const ctxSize = modelsData.data?.[0]?.context_length;
+         if (ctxSize && ctxSize > 0) {
+           ctxNContext = ctxSize;
+           updateContextPanel();
+         }
+       } catch(e) { /* skip */ }
+
+          // Fetch real context usage from state.db via our API
+        try {
+          const ctxR = await fetch('/api/context_usage');
+          const ctxData = await ctxR.json();
+          if (ctxData && ctxData.input_tokens !== undefined) {
+            const total = ctxData.input_tokens + (ctxData.output_tokens || 0);
+            const prev = ctxCurrentTokens;
+            ctxCurrentTokens = total;
+
+            // Detect compression: significant drop in context tokens (>30% drop)
+            if (prev > 5000 && total < prev * 0.7) {
+              compressCount++;
+              const el = document.getElementById('compressCount');
+              if (el) el.textContent = compressCount;
+              log(`Compression detected (#${compressCount}): ${prev.toLocaleString()} -> ${total.toLocaleString()}`, 'warn');
+            }
+
+            updateContextPanel();
+          }
+        } catch(e) { /* skip */ }
+        } catch (e) { /* skip */ }
+  }, 3000);
+}
+
+// === LOGGING ===
+function log(msg, level = 'info') {
+  const el = document.getElementById('logContent');
+  const ts = new Date().toLocaleTimeString();
+  const cls = `log-line ${level}`;
+  el.insertAdjacentHTML('beforeend', `<div class="${cls}">[${ts}] ${esc(msg)}</div>`);
+  
+  // Keep last 100 lines
+  while (el.children.length > 100) el.removeChild(el.firstChild);
+  
+  el.scrollTop = el.scrollHeight;
+}
+
+// === SCROLLING ===
+function scrollChatBottom() {
+  const el = document.getElementById('chatMessages');
+  setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+}
+</script>
+</body>
+</html>
