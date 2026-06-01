@@ -10,6 +10,17 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { createWriteStream, readdirSync, statSync, readFileSync } from 'fs';
 import { join, extname, dirname } from 'path';
 import { fileURLToPath, URL } from 'url';
+import os from 'os';
+
+// Read API_SERVER_KEY from .env for proxying to Gateway
+let API_SERVER_KEY = '';
+try {
+  const envPath = join(os.homedir(), '.hermes', '.env');
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^API_SERVER_KEY=(.+)$/);
+    if (m) { API_SERVER_KEY = m[1].trim(); break; }
+  }
+} catch {}
 
 // Global error handlers — prevent unhandled rejections from crashing the server
 process.on('uncaughtException', (e) => {
@@ -22,7 +33,7 @@ process.on('unhandledRejection', (reason) => {
 const PORT = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const BASE_DIR = dirname(__filename);
-const GATEWAY_URL = 'http://localhost:8642';
+const GATEWAY_URL = 'http://127.0.0.1:8642';
 const LLAMA_URL = 'http://localhost:8090';
 const COMFYUI_URL = 'http://localhost:8188';
 
@@ -98,10 +109,15 @@ function handleRequest(req, res) {
     return handleLlamaMetrics(req, res);
   }
 
-  // Current profile
-  if (pathname === '/api/current_profile' && req.method === 'GET') {
-    return handleCurrentProfile(req, res);
-  }
+  // Backend info — model, vision model, ctx size, backend name, server address
+   if (pathname === '/api/backend_info' && req.method === 'GET') {
+     return handleBackendInfo(req, res);
+   }
+
+   // Current profile
+   if (pathname === '/api/current_profile' && req.method === 'GET') {
+     return handleCurrentProfile(req, res);
+   }
   const promptMatch = pathname.match(/^\/api\/profile_system_prompt\/(.+)$/);
   if (promptMatch && req.method === 'GET') {
     return handleProfileSystemPrompt(req, res, promptMatch[1]);
@@ -122,6 +138,46 @@ function handleRequest(req, res) {
     const id = pathname.match(/^\/api\/sessions\/(\w+)/)[1];
     return loadSessions().then(s => s.filter(s => s.id !== id)).then(saveSessions).then(() => sendJSON(res, 200, { ok: true })).catch(e => sendJSON(res, 500, { error: e.message }));
   }
+
+  // Session chat — proxy to Gateway /api/sessions/{id}/chat/stream (SSE)
+  if (pathname === '/api/session_chat' && req.method === 'POST') {
+    return handleSessionChat(req, res).catch(e => sendJSON(res, 500, { error: e.message }));
+  }
+
+  // Session messages — proxy to Gateway /api/sessions/{id}/messages
+  const sessMsgMatch = /^\/api\/session_messages\/(.+)$/.exec(pathname);
+  if (sessMsgMatch && req.method === 'GET') {
+    const id = sessMsgMatch[1];
+    return proxyRequest(req, res, GATEWAY_URL, `/api/sessions/${id}/messages`);
+  }
+
+  // Session detail — proxy to Gateway /api/sessions/{id}
+  const sessDetailMatch = /^\/api\/session_detail\/(.+)$/.exec(pathname);
+  if (sessDetailMatch && req.method === 'GET') {
+    const id = sessDetailMatch[1];
+    return proxyRequest(req, res, GATEWAY_URL, `/api/sessions/${id}`);
+  }
+
+  // Session rename — proxy to Gateway PATCH /api/sessions/{id}
+  const sessRenameMatch = /^\/api\/session\/(.+)$/.exec(pathname);
+  if (sessRenameMatch && req.method === 'PATCH') {
+    const id = sessRenameMatch[1];
+    return proxyRequest(req, res, GATEWAY_URL, `/api/sessions/${id}`);
+  }
+
+  // Session fork — proxy to Gateway POST /api/sessions/{id}/fork
+   const sessForkMatch = /^\/api\/session_fork\/(.+)$/.exec(pathname);
+   if (sessForkMatch && req.method === 'POST') {
+     const id = sessForkMatch[1];
+     return proxyRequest(req, res, GATEWAY_URL, `/api/sessions/${id}/fork`, true);
+   }
+
+   // Steer — proxy to Gateway POST /api/sessions/{id}/steer
+   const sessSteerMatch = /^\/api\/session_steer\/(.+)$/.exec(pathname);
+   if (sessSteerMatch && req.method === 'POST') {
+     const id = sessSteerMatch[1];
+     return proxyRequest(req, res, GATEWAY_URL, `/api/sessions/${id}/steer`, true);
+   }
 
   // Chat endpoint — proxy to Gateway with SSE streaming
   if (pathname === '/api/chat' && req.method === 'POST') {
@@ -334,6 +390,58 @@ function parsePrometheusMetrics(text) {
   return { metrics: result, help: HELP, type: TYPE };
 }
 
+// Backend info handler — fetch model info via Gateway
+let backendInfoCache = null;
+let backendInfoCacheTime = 0;
+const BACKEND_INFO_CACHE_MS = 60000; // Cache for 1 minute
+
+function handleBackendInfo(req, res) {
+  const now = Date.now();
+  if (backendInfoCache && now - backendInfoCacheTime < BACKEND_INFO_CACHE_MS) {
+    return sendJSON(res, 200, backendInfoCache);
+  }
+
+  // Fetch model info directly from llama.cpp
+     const options = {
+       hostname: '127.0.0.1',
+       port: 8090,
+       path: '/v1/models',
+       method: 'GET'
+     };
+
+   console.log('[BackendInfo] Requesting', options.hostname, options.port, options.path);
+
+   request(options, (proxyRes) => {
+     let body = '';
+     proxyRes.on('data', d => { body += d; });
+     proxyRes.on('end', () => {
+       try {
+         const models = JSON.parse(body);
+         const modelInfo = models.data?.[0] || {};
+         const ctx = modelInfo.meta?.n_ctx || 'N/A';
+         const visionModel = modelInfo.capabilities?.includes('multimodal') ? modelInfo.id : 'N/A';
+         backendInfoCache = {
+           model: modelInfo.id || 'Unknown',
+           visionModel: visionModel,
+           ctxSize: ctx,
+           backend: 'llama.cpp server',
+           serverAddress: LLAMA_URL,
+         };
+         backendInfoCacheTime = now;
+         console.log('[BackendInfo] OK:', backendInfoCache.model, 'ctx:', ctx);
+         return sendJSON(res, 200, backendInfoCache);
+       } catch (e) {
+         console.error('[BackendInfo] Parse error:', e.message, 'body:', body.slice(0, 200));
+         return sendJSON(res, 500, { error: 'Failed to fetch backend info' });
+       }
+     });
+   }).on('error', (e) => {
+     console.error('[BackendInfo] Request error:', e.code, e.message);
+     if (backendInfoCache) return sendJSON(res, 200, backendInfoCache);
+     return sendJSON(res, 503, { error: 'llama.cpp unavailable' });
+   });
+}
+
 // Chat handler — proxy to Gateway with SSE passthrough
 async function handleChat(req, res) {
   let body = '';
@@ -357,7 +465,7 @@ async function handleChat(req, res) {
   const payloadStr = JSON.stringify(apiPayload);
   
   const options = {
-    hostname: 'localhost',
+    hostname: '127.0.0.1',
     port: 8642,
     path: '/v1/chat/completions',
     method: 'POST',
@@ -385,19 +493,100 @@ async function handleChat(req, res) {
     });
 
     proxyRes.on('error', () => {}); // silence, already piped
-    proxyRes.pipe(res);
-  });
+     proxyRes.pipe(res);
+     proxyRes.on('end', () => clearTimeout(chatTimeout));
+     res.on('close', () => { clearTimeout(chatTimeout); proxyReq.destroy(); });
+     const chatTimeout = setTimeout(() => {
+       proxyReq.destroy();
+       if (res.headersSent) res.end();
+     }, 300_000);
+    });
 
-  proxyReq.on('error', (e) => {
-    console.error('Proxy request to Gateway failed:', e.message);
-    if (!res.headersSent) {
-      sendJSON(res, 502, { error: `Gateway unavailable` });
+    proxyReq.on('error', (e) => {
+     console.error('Proxy request to Gateway failed:', e.message);
+     if (!res.headersSent) {
+       sendJSON(res, 502, { error: `Gateway unavailable` });
+     }
+    });
+
+    proxyReq.write(payloadStr);
+    proxyReq.end();
     }
-  });
 
-  proxyReq.write(payloadStr);
-  proxyReq.end();
-}
+// Session chat — proxy to Gateway /api/sessions/{id}/chat/stream (SSE)
+async function handleSessionChat(req, res) {
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+  }
+
+  let parsed;
+  try { parsed = JSON.parse(body); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }); }
+
+  const sessionId = parsed.session_id;
+  if (!sessionId) return sendJSON(res, 400, { error: 'Missing session_id' });
+
+  // Build payload for Gateway session chat API
+  const gatewayPayload = {
+    message: parsed.input,
+  };
+  if (parsed.instructions) {
+    gatewayPayload.instructions = parsed.instructions;
+  }
+
+  const payloadStr = JSON.stringify(gatewayPayload);
+
+  const options = {
+    hostname: '127.0.0.1',
+    port: 8642,
+    path: `/api/sessions/${sessionId}/chat/stream`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payloadStr),
+    },
+  };
+  if (API_SERVER_KEY) {
+    options.headers['authorization'] = `Bearer ${API_SERVER_KEY}`;
+  }
+
+  const proxyReq = request(options, (proxyRes) => {
+    if (res.headersSent) return; // Already sent error response
+    if (proxyRes.statusCode !== 200) {
+      console.error(`[API_SERVER] Gateway chat/stream returned ${proxyRes.statusCode}`);
+      let errBody = '';
+      proxyRes.on('data', d => { errBody += d; });
+      proxyRes.on('end', () => { sendJSON(res, proxyRes.statusCode, { error: errBody }); });
+      return;
+    }
+
+    // Forward SSE stream
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    proxyRes.on('error', () => {});
+     proxyRes.pipe(res);
+     proxyRes.on('end', () => clearTimeout(sessionChatTimeout));
+     res.on('close', () => { clearTimeout(sessionChatTimeout); proxyReq.destroy(); });
+     const sessionChatTimeout = setTimeout(() => {
+       proxyReq.destroy();
+       if (res.headersSent) res.end();
+     }, 300_000);
+    });
+
+    proxyReq.on('error', (e) => {
+     console.error('[API_SERVER] Session chat proxy failed:', e.message);
+     if (!res.headersSent) {
+       sendJSON(res, 502, { error: 'Gateway unavailable' });
+     }
+    });
+
+    proxyReq.end(payloadStr);
+    }
 
 // Session creation handler
 async function handleCreateSession(req, res) {
@@ -409,12 +598,39 @@ async function handleCreateSession(req, res) {
   let parsed = {};
   try { parsed = JSON.parse(body); } catch {}
 
+  // Create session on Gateway - required, no fallback
+  let gatewaySessionId = null;
+  try {
+    const gwResp = await fetch(`${GATEWAY_URL}/api/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_SERVER_KEY}`
+      },
+      body: JSON.stringify({})
+    });
+    if (gwResp.ok) {
+      const gwData = await gwResp.json();
+      gatewaySessionId = gwData.session?.id;
+    } else {
+      console.error('Gateway session creation failed:', gwResp.status, await gwResp.text());
+    }
+  } catch (e) {
+    console.error('Failed to create Gateway session:', e);
+  }
+
+  if (!gatewaySessionId) {
+    console.error('Cannot create session: Gateway unavailable');
+    sendJSON(res, 503, { error: 'Gateway unavailable, cannot create session' });
+    return;
+  }
+
   const sessions = await loadSessions();
   const session = {
-    id: `web_${Date.now()}`,
+    id: gatewaySessionId,
     title: parsed.title || '新对话',
     messages: [],
-    hermes_session_id: null,
+    hermes_session_id: gatewaySessionId,
   };
   sessions.push(session);
   await saveSessions(sessions);
@@ -534,6 +750,11 @@ function proxySSE(req, res, targetUrl, path) {
   options.headers['host'] = `${url.hostname}:${options.port}`;
   delete options.headers.origin;
   delete options.headers['referer'];
+  
+  // Add API key for Gateway requests
+  if (API_SERVER_KEY && targetUrl.includes('8642')) {
+    options.headers['authorization'] = `Bearer ${API_SERVER_KEY}`;
+  }
 
   const proxyReq = request(options, (proxyRes) => {
     // Force SSE-friendly headers regardless of upstream
@@ -544,18 +765,24 @@ function proxySSE(req, res, targetUrl, path) {
       'X-Accel-Buffering': 'no',
     });
     proxyRes.on('error', () => {});
-    proxyRes.pipe(res);
-  });
+      proxyRes.pipe(res);
+      proxyRes.on('end', () => clearTimeout(sseTimeout));
+      res.on('close', () => { clearTimeout(sseTimeout); proxyReq.destroy(); });
+      const sseTimeout = setTimeout(() => {
+        proxyReq.destroy();
+        if (res.headersSent) res.end();
+      }, 300_000);
+    });
 
-  proxyReq.on('error', (e) => {
-    console.error(`SSE proxy error (${targetUrl}${path}):`, e.message);
-    if (!res.headersSent) {
-      sendJSON(res, 502, { error: `Backend unavailable: ${targetUrl}` });
+    proxyReq.on('error', (e) => {
+      console.error(`SSE proxy error (${targetUrl}${path}):`, e.message);
+      if (!res.headersSent) {
+        sendJSON(res, 502, { error: `Backend unavailable: ${targetUrl}` });
+      }
+    });
+
+    proxyReq.end();
     }
-  });
-
-  proxyReq.end();
-}
 
 // Proxy handler for Gateway, llama.cpp, and ComfyUI
 function proxyRequest(req, res, targetUrl, path) {
@@ -576,6 +803,12 @@ function proxyRequest(req, res, targetUrl, path) {
   delete options.headers.origin;
   delete options.headers['referer'];
   delete options.headers['x-hermes-session-key'];
+  
+  // Add API key for Gateway requests
+  if (API_SERVER_KEY && targetUrl.includes('8642')) {
+    options.headers['authorization'] = `Bearer ${API_SERVER_KEY}`;
+  }
+  
   if (req.method === 'GET' || req.method === 'HEAD') {
     delete options.headers['content-type'];
     delete options.headers['transfer-encoding'];
@@ -681,33 +914,8 @@ function sendJSON(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-// Create server with connection tracking — auto-close after idle timeout
-const activeConnections = new Set();
-let shutdownTimer = null;
-const IDLE_TIMEOUT_MS = 30_000; // 30s without any client → shutdown
-
+// Create server
 const server = createServer(handleRequest);
-
-server.on('connection', (socket) => {
-  activeConnections.add(socket);
-  // New connection arrived — cancel pending shutdown if any
-  if (shutdownTimer) {
-    clearTimeout(shutdownTimer);
-    shutdownTimer = null;
-    console.log('Client connected, shutdown cancelled');
-  }
-  socket.on('close', () => {
-    activeConnections.delete(socket);
-    // All clients disconnected — start idle timer
-    if (activeConnections.size === 0 && !shutdownTimer) {
-      shutdownTimer = setTimeout(() => {
-        console.log(`\nNo clients for ${IDLE_TIMEOUT_MS/1000}s, shutting down...\n`);
-        server.close(() => process.exit(0));
-        setTimeout(() => process.exit(0), 2000);
-      }, IDLE_TIMEOUT_MS);
-    }
-  });
-});
 
 server.listen(PORT, () => {
   console.log(`\nHermes WebUI running at http://localhost:${PORT}\n`);
@@ -716,3 +924,7 @@ server.listen(PORT, () => {
   console.log(`ComfyUI proxy:   /comfyui/*   -> ${COMFYUI_URL}/*`);
   console.log(`GPU monitor:     /api/gpu     -> nvidia-smi\n`);
 });
+
+// Graceful shutdown on Ctrl+C / SIGTERM
+process.on('SIGINT', () => { server.close(); process.exit(0); });
+process.on('SIGTERM', () => { server.close(); process.exit(0); });

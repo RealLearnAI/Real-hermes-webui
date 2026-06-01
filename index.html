@@ -19,7 +19,7 @@ body {
 /* === LAYOUT === */
 .container {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 28px);
 }
 
 /* LEFT SIDEBAR */
@@ -228,6 +228,43 @@ body {
   padding: 20px;
 }
 
+.top-bar {
+  position: relative;
+  height: 28px;
+  background: #16191f;
+  border-bottom: 1px solid #2a2e38;
+}
+
+.top-bar .connection-indicator {
+  position: absolute;
+  right: 280px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7a7f8c;
+  transition: background .2s;
+}
+.connection-dot.connected {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade8088;
+}
+.connection-dot.disconnected {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef444488;
+}
+.connection-label {
+  font-size: 11px;
+  color: #7a7f8c;
+}
+
 .message {
   margin-bottom: 16px;
   display: flex;
@@ -384,6 +421,8 @@ body {
   max-height: 200px;
   overflow-y: auto;
   font-family: 'Cascadia Code', 'Fira Code', monospace;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .tool-call-toggle {
@@ -475,6 +514,8 @@ body {
 .btn-send:hover:not(:disabled) { background: #34d078; }
 .btn-send.steer-mode { background: #facc15; color: #1a1d23; }
 .btn-send.steer-mode:hover:not(:disabled) { background: #fde047; }
+.btn-steer-toggle { background: #3b3f4c; color: #7a7f8c; border: 1px solid #4a4f5c; }
+.btn-steer-toggle.active { background: #facc15; color: #1a1d23; border-color: #facc15; }
 .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-stop { background: #3b3f4c; color: #7a7f8c; cursor: not-allowed; }
@@ -609,10 +650,12 @@ body {
 
 #logContent {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
-  font-size: 11px;
+  font-size: 10px;
   color: #7a7f8c;
-  line-height: 1.5;
-  max-height: 200px;
+  line-height: 1.4;
+  flex: 1;
+  min-height: 150px;
+  max-height: 400px;
   overflow-y: auto;
   padding: 8px;
   background: #121419;
@@ -667,6 +710,29 @@ body {
 @keyframes blink {
   0%, 50% { opacity: 0.2; }
   50%, 100% { opacity: 1; }
+}
+
+/* Status indicator */
+.status-indicator {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  position: relative;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.status-indicator.working {
+  background: conic-gradient(from 0deg, transparent 60%, #fb923c 100%);
+  border-radius: 50%;
+  animation: statusSpin 1s linear infinite;
+}
+.status-indicator.idle {
+  background: #4ade80;
+  border-radius: 50%;
+}
+
+@keyframes statusSpin {
+  to { transform: rotate(360deg); }
 }
 
 /* Context status panel */
@@ -754,9 +820,83 @@ body {
 .speed-predicted .speed-item-value { color: #4ade80; }
 .speed-avg .speed-item-value { font-size: 16px; }
 
+/* Request Status Bar — cards with small dots */
+.req-status-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.req-big-card {
+  flex: 1;
+  background: #1e2129;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 2px solid #2a2e38;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+}
+.req-big-card.active {
+  border-color: #f59e0b;
+  background: #2a2418;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+}
+.req-big-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3a3f4b;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.req-big-card.active .req-big-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+  animation: reqPulse 1.5s infinite;
+}
+@keyframes reqPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.req-big-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.req-big-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+.req-big-card.active .req-big-label {
+  color: #fbbf24;
+}
+.req-big-num {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #4b5563;
+  line-height: 1;
+  transition: color 0.3s;
+}
+.req-big-card.active .req-big-num {
+  color: #fbbf24;
+}
+
+
+
 </style>
 </head>
 <body>
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="connection-indicator">
+    <div class="connection-dot" id="connectionDot"></div>
+    <span class="connection-label" id="connectionLabel">检测中...</span>
+  </div>
+</div>
+
 <div class="container">
 
 <!-- LEFT SIDEBAR -->
@@ -768,9 +908,10 @@ body {
    </div>
   <div class="profile-grid" id="profileGrid"></div>
   <div class="session-list" id="sessionList">
-    <button class="new-session-btn" onclick="createSession()">+ 新对话</button>
+     <button class="new-session-btn" onclick="createSession()">+ 新对话</button>
+   </div>
+
   </div>
-</div>
 
 <!-- MAIN CONTENT -->
 <div class="main-content">
@@ -794,13 +935,11 @@ body {
         <textarea id="msgInput" placeholder="输入消息... (Enter发送, Shift+Enter换行)" onkeydown="handleInputKey(event)"></textarea>
       </div>
 
-      <!-- Right: Send/Stop buttons with steer menu -->
-      <div class="input-buttons-right">
-        
-
-        <button class="btn-action btn-send" id="sendBtn" onclick="sendMessage()">发送</button>
-        <button class="btn-action btn-stop" id="stopBtn" onclick="abortGeneration()" disabled>中止</button>
-      </div>
+      <!-- Right: Send/Stop buttons -->
+        <div class="input-buttons-right">
+          <button class="btn-action btn-send" id="sendBtn" onclick="sendMessage()">发送</button>
+          <button class="btn-action btn-stop" id="stopBtn" onclick="abortGeneration()" disabled>中止</button>
+        </div>
     </div>
   </div>
 </div>
@@ -876,12 +1015,29 @@ body {
               <div><span class="speed-item-value" id="speedPredictedAvg">--</span><span class="speed-item-unit">tok/s</span></div>
               </div>
               </div>
+               <!-- Request Status Bar -->
+                        <div class="panel-title" style="margin-top:12px;">请求状态</div>
+                        <div class="req-status-bar">
+                       <div class="req-big-card" id="reqProcessing">
+                       <div class="req-big-dot"></div>
+                       <div class="req-big-info">
+                       <span class="req-big-label">处理中</span>
+                       <span class="req-big-num" id="reqProcessingVal">0</span>
+                       </div>
+                       </div>
+                       <div class="req-big-card" id="reqDeferred">
+                       <div class="req-big-dot"></div>
+                       <div class="req-big-info">
+                       <span class="req-big-label">排队</span>
+                       <span class="req-big-num" id="reqDeferredVal">0</span>
+                       </div>
+                       </div>
+                       </div>
+               <!-- Log Panel -->
+              <div class="panel-section log-panel" style="flex:1;display:flex;flex-direction:column;">
+              <div class="panel-title">日志</div>
+              <div id="logContent" style="flex:1;overflow-y:auto;"></div>
               </div>
-              <!-- Log Panel -->
-       <div class="panel-section log-panel" style="flex:1;">
-    <div class="panel-title">日志</div>
-    <div id="logContent"></div>
-  </div>
 
 </div>
 </div>
@@ -891,7 +1047,7 @@ body {
 let sessions = [];
 let currentSession = null;
 let conversationHistory = []; // messages array for API
-let webuiSessionId = 'webui-' + Math.random().toString(36).substring(2, 10); // stable session id for gateway
+let webuiSessionId = null; // Set by createSession() or switchToSession()
 let abortController = null;
 let pendingFiles = [];
 let tokenCountThisTurn = 0;
@@ -907,28 +1063,59 @@ let speedHistory = { prompt: [], predicted: [] };  // Last 20 speed readings
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
-  loadSessions();
-  // Sanitize: remove old multimodal arrays from conversationHistory
-  conversationHistory = conversationHistory.filter(m => !Array.isArray(m.content));
-  loadProfiles();
-   startGPUMonitor();
-   startLlamaMetricsMonitor();
-  fetchCtxLimit();
+  (async () => {
+     await loadSessions();
+     // Check if any session has a valid Gateway session ID
+     const hasValidSession = sessions.some(s => s.hermes_session_id);
+     // Auto-create a new session if none exist or none have valid Gateway session
+     if (!hasValidSession) {
+       await createSession();
+     }
+    // Sanitize: remove old multimodal arrays from conversationHistory
+    conversationHistory = conversationHistory.filter(m => !Array.isArray(m.content));
+    loadProfiles();
+  checkConnection();
+  setInterval(checkConnection, 15000);
+     startGPUMonitor();
+     startLlamaMetricsMonitor();
+    fetchCtxLimit();
 
-  // Auto-resize textarea as user types
-  const ta = document.getElementById('msgInput');
-  if (ta) {
-    ta.addEventListener('input', () => {
-      ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
-    });
-  }
+    // Auto-resize textarea as user types
+    const ta = document.getElementById('msgInput');
+    if (ta) {
+      ta.addEventListener('input', () => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+      });
+    }
+  })();
 });
+
+// === CONNECTION MONITOR ===
+async function checkConnection() {
+  const dot = document.getElementById('connectionDot');
+  const label = document.getElementById('connectionLabel');
+  try {
+    const res = await fetch('/api/sessions', { method: 'GET' });
+    if (res.ok) {
+      dot.className = 'connection-dot connected';
+      label.textContent = '已连接';
+    } else {
+      dot.className = 'connection-dot disconnected';
+      label.textContent = '断开连接';
+    }
+  } catch (e) {
+    dot.className = 'connection-dot disconnected';
+    label.textContent = '断开连接';
+  }
+}
 
 // === PROFILES ===
 let allProfiles = [];
 let currentProfile = 'default';
 let profileSystemPrompts = {}; // profile name -> system prompt text
+
+
 
 async function loadProfiles() {
   try {
@@ -936,9 +1123,14 @@ async function loadProfiles() {
     if (r.ok) {
       const data = await r.json();
       allProfiles = data.profiles || [];
-      currentProfile = data.profile || 'default';
+      // Restore from localStorage first, fallback to server, then default
+      currentProfile = localStorage.getItem('webui_profile') || data.profile || 'default';
+    } else {
+      currentProfile = localStorage.getItem('webui_profile') || 'default';
     }
-  } catch(e) { /* default */ }
+  } catch(e) { 
+    currentProfile = localStorage.getItem('webui_profile') || 'default'; 
+  }
   
   // Always include default profile
   if (!allProfiles.find(p => p.name === 'default')) {
@@ -1020,10 +1212,26 @@ function renderProfileList() {
 
 function switchProfile(name) {
   currentProfile = name;
+  localStorage.setItem('webui_profile', name);
   renderProfileList();
+  updateAgentDisplay();
   // Clear current session and create new one under the new profile
   currentSession = null;
   document.getElementById('chatMessages').innerHTML = '';
+}
+
+function updateAgentDisplay() {
+  // Update agent avatar name based on current profile
+  const nameEl = document.querySelector('.agent-name, .profile-list-label');
+  if (nameEl) {
+    if (currentProfile === 'default') {
+      nameEl.textContent = '猪头';
+    } else {
+      // Find the label for this profile
+      const p = allProfiles.find(p => p.name === currentProfile);
+      nameEl.textContent = p ? p.label : currentProfile;
+    }
+  }
 }
 
 // === SESSIONS ===
@@ -1039,14 +1247,100 @@ async function loadSessions() {
 function renderSessionList() {
   const list = document.getElementById('sessionList');
   // Keep the new session button
-  let html = '<button class="new-session-btn" onclick="createSession()">+ 新对话</button>';
+  let html = '<button class="new-session-btn" onclick="createSession()">新建对话</button>';
   for (const s of sessions) {
-    html += `<div class="session-item ${s.id === currentSession?.id ? 'active' : ''}" data-id="${s.id}">
-      <span onclick="switchToSession('${s.id}')">${esc(s.title)}</span>
-      <span class="session-del" onclick="deleteSession('${s.id}')">×</span>
+    html += `<div class="session-item ${s.id === currentSession?.id ? 'active' : ''}" data-id="${s.id}" 
+      onclick="switchToSession('${s.id}')" 
+      oncontextmenu="event.preventDefault(); showSessionContext(event, '${s.id}')">
+      <span>${esc(s.title)}</span>
+      <span class="session-del" onclick="event.stopPropagation(); deleteSession('${s.id}')">×</span>
     </div>`;
   }
   list.innerHTML = html;
+}
+
+// Session context menu (rename)
+function showSessionContext(e, id) {
+  const menu = document.createElement('div');
+  menu.id = 'session-context-menu';
+  menu.style.cssText = `
+    position: fixed; top: ${e.clientY}px; left: ${e.clientX}px;
+    background: #1e1e2e; border: 1px solid #444; border-radius: 6px;
+    padding: 4px 0; z-index: 1000; min-width: 120px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  `;
+  menu.innerHTML = `
+    <div style="padding: 8px 16px; cursor: pointer; color: #c0caf5; font-size: 13px;" onclick="renameSession('${id}', event)">重命名</div>
+    <div style="padding: 8px 16px; cursor: pointer; color: #c0caf5; font-size: 13px;" onclick="forkSession('${id}', event)">分叉会话</div>
+  `;
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  }, 0);
+}
+
+async function renameSession(id, e) {
+  document.getElementById('session-context-menu')?.remove();
+  const s = sessions.find(s => s.id === id);
+  if (!s) return;
+  const name = prompt('输入新名称:', s.title);
+  if (name && name !== s.title) {
+    try {
+      // Call Gateway API to rename session
+      await fetch(`/api/session/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: name })
+      });
+      // Update local session
+      s.title = name;
+      saveSessions();
+      renderSessionList();
+    } catch(err) {
+      // Fallback to local rename
+      s.title = name;
+      saveSessions();
+      renderSessionList();
+    }
+  }
+}
+
+async function forkSession(id, e) {
+  document.getElementById('session-context-menu')?.remove();
+  try {
+    const resp = await fetch(`/api/session_fork/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const newSession = data.session;
+    
+    // Load sessions list to get the updated list
+    await loadSessions();
+    
+    // Switch to the forked session
+    const forkSess = sessions.find(s => s.id === newSession.id);
+    if (forkSess) {
+      switchToSession(forkSess.id);
+    } else {
+      // Add to local sessions if not found
+      sessions.push({
+        id: newSession.id,
+        title: newSession.title || '分叉会话',
+        messages: [],
+        hermes_session_id: newSession.id,
+        end_reason: newSession.end_reason
+      });
+      saveSessions();
+      renderSessionList();
+      switchToSession(newSession.id);
+    }
+  } catch(err) {
+    console.error('Fork session failed:', err);
+    alert('分叉会话失败: ' + err.message);
+  }
 }
 
 async function createSession() {
@@ -1055,8 +1349,8 @@ async function createSession() {
   sessions.push(s);
   renderSessionList();
   switchToSession(s.id);
-  // Reset session ID for new conversation
-  webuiSessionId = 'webui-' + Math.random().toString(36).substring(2, 10);
+  // Use Gateway session ID (returned by server)
+  webuiSessionId = s.id;
 }
 
 async function deleteSession(id) {
@@ -1070,32 +1364,103 @@ async function deleteSession(id) {
   renderSessionList();
 }
 
-function switchToSession(id) {
+async function switchToSession(id) {
   const s = sessions.find(s => s.id === id);
   if (!s) return;
   currentSession = s;
-  conversationHistory = (s.messages || []).filter(m => !Array.isArray(m.content));
-  // Render messages
-  const msgDiv = document.getElementById('chatMessages');
-  msgDiv.innerHTML = '';
-  for (const m of conversationHistory) {
-    appendMessage(m.role, m.content, false);
+
+  // Load messages from Gateway session API
+  try {
+    const resp = await fetch(`/api/session_messages/${id}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      // Gateway returns { object: "list", data: [...] }
+      const gatewayMessages = data.messages || data.data || [];
+      // Convert to our format
+      conversationHistory = gatewayMessages.map(m => ({
+        role: m.role,
+        content: m.content || ''
+      }));
+      // Update local session cache
+      s.messages = conversationHistory;
+      saveSessions();
+    } else {
+      // Fallback to local messages
+      conversationHistory = (s.messages || []).filter(m => {
+        return typeof m.content === 'string' || m.content === null || Array.isArray(m.content);
+      });
+    }
+  } catch(e) {
+    // Fallback to local messages
+    conversationHistory = (s.messages || []).filter(m => {
+      return typeof m.content === 'string' || m.content === null || Array.isArray(m.content);
+    });
   }
-  renderSessionList();
-  scrollChatBottom();
-}
+
+  // Merge consecutive assistant messages to avoid alternation violations
+  const merged = [];
+  for (const m of conversationHistory) {
+    if (m.role === 'assistant' && merged.length > 0 && merged[merged.length-1].role === 'assistant') {
+      // Merge with previous assistant message
+      const prev = merged[merged.length-1];
+      prev.content = (prev.content || '') + '\n\n' + (m.content || '');
+    } else {
+      merged.push({...m});
+    }
+  }
+  conversationHistory = merged;
+   // Render messages — skip tool_calls messages (content=null) since tools are in sidebar
+   const msgDiv = document.getElementById('chatMessages');
+   msgDiv.innerHTML = '';
+   for (const m of conversationHistory) {
+     if (m.content === null && m.tool_calls) continue; // skip tool_calls, logged in sidebar
+     appendMessage(m.role, m.content, false);
+   }
+   renderSessionList();
+   scrollChatBottom();
+
+   // Set webuiSessionId to the session's Gateway ID (or fallback to local ID)
+   webuiSessionId = s.hermes_session_id || s.id;
+  }
 
 // === CHAT ===
-function appendMessage(role, content, animate = true) {
+function appendMessage(role, content, animate = true, images = null) {
   const msgDiv = document.getElementById('chatMessages');
   const isUser = role === 'user';
   
-  let html = `<div class="message ${role}">`;
-  html += `<div class="msg-avatar">${isUser ? 'U' : '<img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">'}</div>`;
-  html += `<div class="msg-bubble" id="bubble-${Date.now()}">${formatContent(content)}</div>`;
-  html += `</div>`;
+  let bubbleContent = '';
   
-  msgDiv.insertAdjacentHTML('beforeend', html);
+  // Render images if provided (insert raw HTML, not through formatContent)
+  if (images && images.length > 0) {
+    let imgHtml = '<div class="msg-images" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
+    for (const img of images) {
+      if (img.url && img.type.startsWith('image/')) {
+        imgHtml += `<img src="${img.url}" style="max-width:200px;max-height:200px;border-radius:8px;object-fit:cover;" alt="${img.name || 'image'}">`;
+      }
+    }
+    imgHtml += '</div>';
+    bubbleContent = imgHtml;
+  }
+  
+  // Render text content through formatContent
+  if (content) {
+    bubbleContent += formatContent(content);
+  }
+  
+  const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+  const bubbleId = 'bubble-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+  const msgDiv2 = document.createElement('div');
+  msgDiv2.className = 'message ' + role;
+  msgDiv2.id = msgId;
+  msgDiv2.innerHTML = `
+    <div class="msg-avatar">${isUser ? 'U' : '<img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">'}</div>
+    <div class="msg-bubble" id="${bubbleId}"></div>
+  `;
+  // Insert bubble content - images as raw HTML, text through formatContent
+  const bubble = msgDiv2.querySelector('.msg-bubble');
+  bubble.innerHTML = bubbleContent;
+  
+  msgDiv.appendChild(msgDiv2);
   scrollChatBottom();
 }
 
@@ -1253,10 +1618,68 @@ function esc(s) {
 
 let bubbleCounter = 0;
 
+// Steer: inject text into the running AI to guide its output
+async function handleSteerMessage(text) {
+  if (!webuiSessionId) return;
+  
+  const msgDiv = document.getElementById('chatMessages');
+  const assistantBubbles = msgDiv.querySelectorAll('.message.assistant');
+  const lastBubble = assistantBubbles[assistantBubbles.length - 1];
+  
+  log(`>>> Steer: ${text}`, 'info');
+  
+  try {
+    const resp = await fetch(`/api/session_steer/${webuiSessionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    
+    if (!resp.ok) {
+      const err = await resp.text();
+      log(`>>> Steer error: ${err}`, 'error');
+      return;
+    }
+    
+    const data = await resp.json();
+    if (data.steered) {
+      log(`>>> Steer 成功`, 'info');
+    } else {
+      log(`>>> Steer: ${data.message || data.error || '未知'}`, 'warn');
+    }
+    
+    // Visual feedback in the current bubble
+     if (lastBubble) {
+       const bubble = lastBubble.querySelector('.msg-bubble');
+       if (bubble) {
+         bubble.innerHTML += `<div class="steer-indicator" style="color: #facc15; font-size: 11px; margin-top: 4px;">↳ ${text}</div>`;
+       }
+     }
+  } catch(e) {
+    log(`>>> Steer failed: ${e.message}`, 'error');
+  }
+}
+
 async function sendMessage() {
   const input = document.getElementById('msgInput');
   let text = input.value.trim();
   input.value = '';
+  let userImagesForDisplay = null;
+
+  // Check if AI is working — if so, steer instead of new message
+  const stopBtn = document.getElementById('stopBtn');
+  const isWorking = stopBtn && !stopBtn.disabled;
+
+  // Steer first — don't abort yet, steer needs the running agent
+  if (isWorking && text) {
+    return handleSteerMessage(text);
+  }
+
+  // Abort any ongoing request first
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+}
 
   // Build content array with images if any
   let content = text;
@@ -1274,18 +1697,29 @@ async function sendMessage() {
       content = contentParts;
       displayContent = text ? `${text} [${pendingFiles.length} image(s)]` : `[${pendingFiles.length} image(s)]`;
     }
+    // Save image references before clearing
+    userImagesForDisplay = pendingFiles.filter(f => f.type && f.type.startsWith('image/'));
     clearPendingFiles();
   }
 
   if (!content && !hasFiles) return;
-  if (Array.isArray(content) && content.length === 0 && !hasFiles) return;
+    if (Array.isArray(content) && content.length === 0 && !hasFiles) return;
+
+
+
+    const msgPreview = (text || '').substring(0, 50) + ((text || '').length > 50 ? '...' : '');
+    const imgCount = pendingFiles.length;
+    log(`>>> 发送消息: ${msgPreview}${imgCount > 0 ? ` [${imgCount}张图片]` : ''}`, 'info');
 
   // conversationHistory stores text-only for API compatibility
   const historyContent = Array.isArray(content)
     ? content.filter(p => p.type === 'text').map(p => p.text).join(' ')
     : content;
   conversationHistory.push({ role:'user', content: historyContent });
-  appendMessage('user', displayContent);
+  updateSessionTitle();
+  // Pass images to appendMessage for display
+  const displayText = text || (userImagesForDisplay ? `[${userImagesForDisplay.length} image(s)]` : '');
+  appendMessage('user', displayText, false, userImagesForDisplay);
 
   // Create assistant bubble with typing animation
   const msgDiv = document.getElementById('chatMessages');
@@ -1301,114 +1735,198 @@ async function sendMessage() {
     lastMsg.remove();
     msgDiv.appendChild(userClone);
   }
-  msgDiv.insertAdjacentHTML('beforeend', `<div class="message assistant" id="msgAssistant"><div class="msg-avatar"><img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"></div><div class="msg-bubble" id="${assistantBubbleId}"><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div></div>`);
-  const bubble = document.getElementById(assistantBubbleId);
-  let fullText = '';
+  msgDiv.insertAdjacentHTML('beforeend', `<div class="message assistant" id="msgAssistant"><div class="msg-avatar"><img src="/static/avatar.jpg" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"></div><div class="msg-bubble" id="${assistantBubbleId}"><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span><span class="status-indicator working"></span></div></div>`);
+    const bubble = document.getElementById(assistantBubbleId);
+    let fullText = '';
 
-  // Reset token counters for this turn
-  tokenCountThisTurn = 0;
-  turnStartTime = Date.now();
+    // Reset all previous status indicators to idle (exclude current bubble)
+     const allIndicators = msgDiv.querySelectorAll('.message.assistant .status-indicator');
+     allIndicators.forEach(ind => {
+       if (ind !== bubble.querySelector('.status-indicator')) {
+         ind.className = 'status-indicator idle';
+       }
+     });
 
-   try {
-      // Build input: if content is an array (multimodal), wrap as [{role, content}]
-      let inputPayload;
-      if (Array.isArray(content)) {
-        inputPayload = [{ role: 'user', content }];
-      } else {
-        inputPayload = content;
-      }
-      const body = { input: inputPayload, conversation_history:conversationHistory.slice(0,-1), session_id:webuiSessionId };
-      // Attach profile system prompt as instructions (ephemeral_system_prompt)
-      const sp = profileSystemPrompts[currentProfile];
-      if (sp) {
-        body.instructions = sp;
-      }
-      const resp = await fetch('/v1/runs', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+   // Reset token counters for this turn
+   tokenCountThisTurn = 0;
+   turnStartTime = Date.now();
 
-    const runData = await resp.json();
-    activeRunId = runData.run_id;
-    log(`Run started: ${activeRunId}`, 'info');
+   // Get button refs for state management
+      const sendBtn = document.getElementById('sendBtn');
 
-    // Get button refs for state management
-    const sendBtn = document.getElementById('sendBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    stopBtn.disabled = false;
-    stopBtn.classList.add('active');
-
-    // Subscribe to events SSE stream
-    await subscribeToEvents(activeRunId, bubble, () => fullText, (t) => { fullText = t; });
-
-  } catch(e) {
-    if (e.name !== 'AbortError') {
-      appendMessage('assistant', `⚠ Error: ${e.message}`);
-      log(`Run error: ${e.message}`, 'error');
+    // Change send button to indicate steer mode
+    if (sendBtn) {
+      sendBtn.textContent = '引导';
+      sendBtn.classList.add('steer-mode');
     }
-  } finally {
-    activeRunId = null;
-    sendBtn.disabled = false;
-    stopBtn.disabled = true;
-    stopBtn.classList.remove('active');
-    updateTokenSpeed();
-  }
-}
 
-// Subscribe to /v1/runs/{run_id}/events SSE stream
-async function subscribeToEvents(runId, bubble, getFT, setFT) {
+    try {
+     // Build input: if content is an array (multimodal), use as-is
+     let inputPayload;
+     if (Array.isArray(content)) {
+       inputPayload = content;
+     } else {
+       inputPayload = [{ type: 'text', text: content }];
+     }
+     // Use session chat API — Gateway loads full history from state.db
+      const body = { input: inputPayload, session_id: webuiSessionId };
+       // Attach profile system prompt as instructions (ephemeral_system_prompt)
+       const sp = profileSystemPrompts[currentProfile];
+       if (sp) {
+         body.instructions = sp;
+       }
+       log(`>>> API 请求: session=${webuiSessionId}, profile=${currentProfile}`, 'info');
+       abortController = new AbortController();
+       const resp = await fetch('/api/session_chat', {
+         method: 'POST', headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(body),
+         signal: abortController.signal,
+       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+
+      log(`>>> 连接成功，等待响应...`, 'info');
+
+     stopBtn.disabled = false;
+     stopBtn.classList.add('active');
+
+     // Subscribe to SSE stream directly from /api/session_chat response
+     await subscribeToSessionStream(resp, bubble, () => fullText, (t) => { fullText = t; });
+
+   } catch(e) {
+     if (e.name !== 'AbortError') {
+       appendMessage('assistant', `⚠ Error: ${e.message}`);
+       log(`Run error: ${e.message}`, 'error');
+     }
+   } finally {
+      activeRunId = null;
+      sendBtn.disabled = false;
+      sendBtn.textContent = '发送';
+      sendBtn.classList.remove('steer-mode');
+      stopBtn.disabled = true;
+      stopBtn.classList.remove('active');
+      updateTokenSpeed();
+    }
+   }
+
+// Subscribe to session chat SSE stream (from /api/session_chat response)
+async function subscribeToSessionStream(response, bubble, getFT, setFT) {
   return new Promise((resolve) => {
-    eventsSource = new EventSource(`/v1/runs/${runId}/events`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
     let completedTimer = null;
     let isDone = false;
-    // All gateway SSE events come as data: lines (no event: prefix)
-    // so they all arrive via onmessage — we dispatch by parsing JSON.event field
-    eventsSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        // Handle usage data for context tracking
-        if (data.usage && data.usage.prompt_tokens !== undefined) {
-          const prevTokens = ctxCurrentTokens;
-          ctxCurrentTokens = data.usage.prompt_tokens;
-          
-          // Detect compression: significant drop in prompt tokens
-          if (prevTokens > 0 && ctxCurrentTokens < prevTokens * 0.7) {
-            compressCount++;
-            document.getElementById('compressCount').textContent = compressCount;
-            log(`Compression detected (#${compressCount}): ${prevTokens.toLocaleString()} -> ${ctxCurrentTokens.toLocaleString()}`, 'warn');
-          }
-          
-          // Update context progress bar and text
-          updateContextPanel();
-        }
-        
-        handleRunEvent(data, bubble, getFT, setFT);
-        if (data.event === 'run.completed') {
-          // Don't close immediately — wait for remaining message.delta events
-          // that may be in flight due to call_soon_threadsafe scheduling
+    let currentSseEvent = null;
+
+    function readStream() {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          // Stream ended — final cleanup
           if (!isDone) {
             isDone = true;
-            if (completedTimer) clearTimeout(completedTimer);
-            completedTimer = setTimeout(() => { cleanupRun(bubble, getFT()); resolve(); }, 1000);
+            cleanupRun(bubble, getFT());
+            resolve();
+          }
+          return;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        // Process complete SSE lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(':')) continue; // Skip empty/comment lines
+
+          // Parse SSE event: lines
+          if (trimmed.startsWith('event: ')) {
+            currentSseEvent = trimmed.slice(7).trim();
+            continue;
+          } else if (trimmed.startsWith('event:')) {
+            currentSseEvent = trimmed.slice(6).trim();
+            continue;
+          }
+
+          // Parse SSE data: lines
+          let data = null;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              data = JSON.parse(trimmed.slice(6));
+            } catch(e) { /* skip non-JSON data lines */ }
+          } else if (trimmed.startsWith('data:')) {
+            try {
+              data = JSON.parse(trimmed.slice(5));
+            } catch(e) { /* skip */ }
+          }
+          if (data) {
+            // Inject event field from SSE event: line
+            if (currentSseEvent) data.event = currentSseEvent;
+            handleSessionEvent(data, bubble, getFT, setFT);
+            if (data.event === 'assistant.completed' || data.event === 'run.completed') {
+              if (!isDone) {
+                isDone = true;
+                if (completedTimer) clearTimeout(completedTimer);
+                completedTimer = setTimeout(() => { cleanupRun(bubble, getFT()); resolve(); }, 1000);
+              }
+            }
+            if (data.event === 'run.failed') {
+              bubble.innerHTML += `<br>⚠ Failed: ${esc((data.error || '?'))}`;
+              cleanupRun(bubble, getFT());
+              resolve();
+            }
+            if (data.event === 'run.cancelled') {
+              cleanupRun(bubble, getFT());
+              resolve();
+            }
           }
         }
-        if (data.event === 'run.failed') { bubble.innerHTML+=`<br>⚠ Failed: ${esc((data.error||'?'))}`; cleanupRun(bubble, getFT()); resolve(); }
-        if (data.event === 'run.cancelled') { cleanupRun(bubble, getFT()); resolve(); }
-      } catch(e) {}
-    };
-    
-    // hermes.tool.progress events have an event: prefix, so they don't arrive via onmessage
-    // — we need a dedicated addEventListener for them
-    eventsSource.addEventListener('hermes.tool.progress', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        appendToolCallLegacy(data);
-      } catch(e) {}
-    });
-    setTimeout(() => { cleanupRun(bubble, getFT()); resolve(); }, 300000);
+
+        readStream();
+      }).catch(err => {
+        if (!isDone) {
+          cleanupRun(bubble, getFT());
+          resolve();
+        }
+      });
+    }
+
+    readStream();
+    setTimeout(() => { if (!isDone) { cleanupRun(bubble, getFT()); resolve(); } }, 300000);
   });
+}
+
+// Handle session chat SSE events
+function handleSessionEvent(data, bubble, getFT, setFT) {
+  const evt = data.event;
+  if (evt === 'assistant.delta') {
+     const d = data.delta || '';
+     if (d) {
+       setFT(getFT() + d);
+       tokenCountThisTurn++;
+       bubble.innerHTML = formatContent(getFT()) + '<span class="status-indicator working"></span>';
+       scrollChatBottom();
+       updateTokenSpeed();
+     }
+   }
+  // Usage data for context tracking
+  if (data.usage && data.usage.prompt_tokens !== undefined) {
+    const prevTokens = ctxCurrentTokens;
+    ctxCurrentTokens = data.usage.prompt_tokens;
+    if (prevTokens > 0 && ctxCurrentTokens < prevTokens * 0.7) {
+      compressCount++;
+      document.getElementById('compressCount').textContent = compressCount;
+      log(`Compression detected (#${compressCount}): ${prevTokens.toLocaleString()} -> ${ctxCurrentTokens.toLocaleString()}`, 'warn');
+    }
+    updateContextPanel();
+  }
+  // Legacy tool events
+  if (evt === 'tool.started') handleToolStarted(data);
+  if (evt === 'tool.completed') handleToolCompleted(data);
+  if (evt === 'hermes.tool.progress') appendToolCallLegacy(data);
+  // New Responses API events
+  if (evt === 'response.output_item.added') handleOutputItemAdded(data);
+  if (evt === 'response.output_item.done') handleOutputItemDone(data);
 }
 
 // Tool call tracking
@@ -1416,10 +1934,23 @@ let activeToolCalls = {};  // toolId -> { name, args, startTime, result }
 
 function handleRunEvent(data, bubble, getFT, setFT) {
   const evt = data.event;
-  if (evt==='message.delta') { const d=data.delta||''; if(d){ setFT(getFT()+d); tokenCountThisTurn++; bubble.innerHTML=formatContent(getFT()); scrollChatBottom(); updateTokenSpeed(); } }
+  if (evt==='assistant.delta') {
+    const d=data.delta||'';
+    if(d) {
+      setFT(getFT()+d);
+      tokenCountThisTurn++;
+      bubble.innerHTML=formatContent(getFT());
+      scrollChatBottom();
+      updateTokenSpeed();
+    }
+  }
+  // Legacy events
   if (evt==='tool.started') handleToolStarted(data);
   if (evt==='tool.completed') handleToolCompleted(data);
   if (evt==='hermes.tool.progress') appendToolCallLegacy(data);
+  // New Responses API events
+  if (evt==='response.output_item.added') handleOutputItemAdded(data);
+  if (evt==='response.output_item.done') handleOutputItemDone(data);
 }
 
 function getToolIcon(toolName) {
@@ -1457,6 +1988,16 @@ function truncateArgs(args, maxLen = 80) {
   return str.length > maxLen ? str.slice(0, maxLen) + '...' : str;
 }
 
+function logToolCall(name, result) {
+  const icon = getToolIcon(name);
+  const duration = result?.duration ? (result.duration/1000).toFixed(1)+'s' : '';
+  const status = result?.error ? '❌' : '✓';
+  const output = result?.output || '';
+  const preview = output.substring(0, 100).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const msg = `[${icon} ${name}] ${status} ${duration} — ${preview}${output.length > 100 ? '...' : ''}`;
+  log(msg, result?.error ? 'error' : 'info');
+}
+
 function handleToolStarted(data) {
   const toolName = data.tool || '';
   const preview = data.preview || '';
@@ -1471,31 +2012,12 @@ function handleToolStarted(data) {
     id: toolId,
   };
   
-  // Add tool call to conversationHistory so the model sees it on next turn
   const toolCallsArr = [{ id: toolId, type: 'function', function: { name: toolName, arguments: JSON.stringify(preview || {}) } }];
-  conversationHistory.push({ role: 'assistant', content: null, tool_calls: toolCallsArr });
+  // Don't push tool_calls to conversationHistory — causes alternation violations
+  // conversationHistory.push({ role: 'assistant', content: null, tool_calls: toolCallsArr });
   
-  const msgDiv = document.getElementById('chatMessages');
-  const icon = getToolIcon(toolName);
-  const argsPreview = truncateArgs(preview);
-  
-  msgDiv.insertAdjacentHTML('beforeend', `
-    <div class="tool-call" id="${toolId}">
-      <div class="tool-call-header" onclick="toggleToolCall('${toolId}')">
-        <span class="tool-icon">${icon}</span>
-        <span class="tool-name">${esc(toolName)}</span>
-        ${argsPreview ? `<span class="tool-args">${esc(argsPreview)}</span>` : ''}
-        <span class="tool-status running">运行中...</span>
-        <span class="tool-call-toggle">▼</span>
-      </div>
-      <div class="tool-call-body">
-        <pre id="${toolId}-args">${esc(preview)}</pre>
-        <pre id="${toolId}-result" style="display:none;"></pre>
-      </div>
-    </div>
-  `);
-  
-  scrollChatBottom();
+  // Log to right sidebar
+  logToolCall(toolName, { output: '运行中...', duration: 0 });
 }
 
 function handleToolCompleted(data) {
@@ -1503,7 +2025,6 @@ function handleToolCompleted(data) {
   const duration = data.duration || 0;
   const isError = data.error || false;
   
-  // Find the matching tool call by name (last one started with this name)
   let toolId = null;
   for (const id in activeToolCalls) {
     if (activeToolCalls[id].name === toolName && !activeToolCalls[id].result) {
@@ -1514,39 +2035,58 @@ function handleToolCompleted(data) {
   
   if (!toolId) return;
   
-  // Don't delete yet - keep reference for DOM update
   const tc = activeToolCalls[toolId] || { result: '', error: isError };
   tc.result = data.result || '';
   tc.error = isError;
   delete activeToolCalls[toolId];
-  
-  // Add tool result to conversationHistory so the model sees it on next turn
+
+  // Log to right sidebar instead of chat area
+  logToolCall(toolName, { output: data.result || '', duration: duration * 1000, error: isError });
+
   conversationHistory.push({ role: 'tool', content: data.result || '', tool_call_id: toolId, tool_name: toolName });
-  
-  // Update the DOM
-  const el = document.getElementById(toolId);
-  if (!el) return;
-  
-  const statusEl = el.querySelector('.tool-status');
-  if (statusEl) {
-    statusEl.className = `tool-status ${isError ? 'failed' : 'completed'}`;
-    statusEl.textContent = isError ? '失败' : `✓ ${duration.toFixed(1)}s`;
+}
+
+// === New Responses API event handlers ===
+function handleOutputItemAdded(data) {
+  const item = data.item;
+  if (!item) return;
+  if (item.type === 'function_call' && item.status === 'in_progress') {
+    const callId = item.call_id || item.id;
+    activeToolCalls[callId] = {
+      name: item.name || '',
+      args: item.arguments || '{}',
+      startTime: Date.now(),
+      result: null,
+      error: false,
+      id: callId,
+    };
+    logToolCall(item.name, { output: '运行中...', duration: 0 });
   }
-  
-  // Show result in body
-  const resultEl = document.getElementById(`${toolId}-result`);
-  if (resultEl && tc.result) {
-    resultEl.style.display = 'block';
-    const truncated = tc.result.length > 2000 ? tc.result.slice(0, 2000) + '\n... (truncated)' : tc.result;
-    resultEl.textContent = truncated;
+}
+
+function handleOutputItemDone(data) {
+  const item = data.item;
+  if (!item) return;
+  if (item.type === 'function_call' && item.status === 'completed') {
+    const callId = item.call_id || item.id;
+    if (activeToolCalls[callId]) {
+      activeToolCalls[callId].result = item.arguments || '';
+      delete activeToolCalls[callId];
+    }
   }
-  
-  // Auto-expand if error
-  if (isError) {
-    el.classList.add('expanded');
+  if (item.type === 'function_call_output') {
+    const callId = item.call_id || item.id;
+    const outputParts = item.output || [];
+    const resultText = outputParts.map(p => p.text || '').join('\n');
+    const isError = item.status === 'failed';
+    if (activeToolCalls[callId]) {
+      activeToolCalls[callId].result = resultText;
+      activeToolCalls[callId].error = isError;
+      delete activeToolCalls[callId];
+    }
+    logToolCall(item.name || '(tool)', { output: resultText, duration: 0, error: isError });
+    conversationHistory.push({ role: 'tool', content: resultText, tool_call_id: callId, tool_name: item.name || '' });
   }
-  
-  scrollChatBottom();
 }
 
 function toggleToolCall(toolId) {
@@ -1554,68 +2094,31 @@ function toggleToolCall(toolId) {
   if (el) el.classList.toggle('expanded');
 }
 
-// Legacy: handle hermes.tool.progress events (old format)
+// Legacy: handle hermes.tool.progress events (old format) — log to sidebar only
 function appendToolCallLegacy(td) {
-  const msgDiv = document.getElementById('chatMessages');
   const name = td.name || td.tool || '';
-  const status = td.status || 'running';  // "tool.started" or "tool.completed"
+  const status = td.status || 'running';
+  const result = td.result;
   const duration = td.duration;
   const is_error = td.is_error;
-  const result = td.result;
-  const args = td.arguments || {};
   
-  // Generate a tool ID based on the tool name and timestamp
-  let toolId = `tool-${Date.now()}-${Math.random().toString(36).substr(2,5)}`;
-  
-  if (status === 'tool.started') {
-    // Tool started — show the tool call
-    const argsStr = JSON.stringify(args);
-    const argsDisplay = argsStr.length > 80 ? argsStr.substring(0, 80) + '...' : argsStr;
-    msgDiv.insertAdjacentHTML('beforeend', `<div class="tool-call" id="${toolId}">
-      <div class="tool-call-header" onclick="toggleToolCall('${toolId}')">
-        <span class="tool-name">🔧 ${esc(name)}</span>
-        <span class="tool-status running" data-tool="${toolId}">⏳ running...</span>
-      </div>
-      <div class="tool-args" id="${toolId}-args">${esc(argsDisplay)}</div>
-    </div>`);
-  } else if (status === 'tool.completed') {
-    // Tool completed — update the existing tool call or create a new one
-    const lastTool = msgDiv.querySelector('.tool-call:last-child .tool-status');
-    if (lastTool && lastTool.classList.contains('running')) {
-      // Update the last running tool call
-      const parent = lastTool.closest('.tool-call');
-      if (parent) {
-        lastTool.className = `tool-status ${is_error ? 'error' : 'completed'}`;
-        lastTool.textContent = is_error ? '❌ error' : '✅ done';
-        if (duration) lastTool.textContent += ` (${duration}s)`;
-        if (result) {
-          const resultDiv = document.getElementById(parent.id + '-result');
-          if (resultDiv) {
-            resultDiv.innerHTML = `<pre>${esc(String(result).substring(0, 200))}</pre>`;
-          }
-        }
-      }
-    } else {
-      // No running tool found, create a new completed one
-      msgDiv.insertAdjacentHTML('beforeend', `<div class="tool-call" id="${toolId}">
-        <span class="tool-name">🔧 ${esc(name)}</span> · 
-        <span class="tool-status ${is_error ? 'error' : 'completed'}">${is_error ? '❌ error' : '✅ done'}${duration ? ' (' + duration + 's)' : ''}</span>
-      </div>`);
-    }
-  } else {
-    // Legacy format
-    const emoji = td.emoji || '🔧';
-    const label = td.label || name;
-    let existing = document.getElementById(toolId);
-    if (!existing) {
-      msgDiv.insertAdjacentHTML('beforeend', `<div class="tool-call" id="${toolId}">
-        <span class="tool-name">${emoji} ${esc(label)}</span> · 
-        <span class="tool-status ${status}" data-tool="${toolId}">${status}</span>
-      </div>`);
+  if (status === 'tool.started' || status === 'running') {
+    logToolCall(name, { output: '运行中...', duration: 0 });
+  } else if (status === 'tool.completed' || status === 'completed') {
+    logToolCall(name, { output: result || '', duration: duration * 1000, error: is_error });
+  }
+}
+
+function updateSessionTitle() {
+  if (!currentSession) return;
+  const firstUser = conversationHistory.find(m => m.role === 'user' && typeof m.content === 'string');
+  if (firstUser) {
+    const title = firstUser.content.substring(0, 5) + (firstUser.content.length > 5 ? '...' : '');
+    if (currentSession.title !== title) {
+      currentSession.title = title;
+      renderSessionList();
     }
   }
-  
-  scrollChatBottom();
 }
 
 async function saveSessions() {
@@ -1635,28 +2138,46 @@ async function saveSessions() {
 }
 
 function cleanupRun(bubble, fullText) {
+  const tokenCount = fullText ? fullText.length : 0;
+  const elapsed = turnStartTime ? ((Date.now() - turnStartTime) / 1000).toFixed(1) : '--';
+  log(`<<< 响应完成: ${tokenCount} 字符, ${elapsed}s`, 'info');
   conversationHistory.push({ role:'assistant', content:fullText });
   if(currentSession) currentSession.messages=[...conversationHistory]; saveSessions();
-  if(eventsSource){ eventsSource.close(); eventsSource=null; }
+  // Close SSE reader if active (handled by subscribeToSessionStream internally)
   activeToolCalls = {};
   activeRunId = null;
+  // Switch status indicator to idle (green)
+  const indicator = bubble.querySelector('.status-indicator');
+  if (indicator) {
+    indicator.className = 'status-indicator idle';
+  }
   updateTokenSpeed(); scrollChatBottom();
 }
 
 function showApprovalUI(data) { /* placeholder */ }
 
 function abortGeneration() {
-  if(eventsSource){ eventsSource.close(); eventsSource=null; }
-  if(activeRunId){ fetch(`/v1/runs/${activeRunId}/stop`,{method:'POST'}).catch(()=>{}); activeRunId=null; }
+  // Abort via AbortController
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
+  if (activeRunId) {
+    fetch(`/v1/runs/${activeRunId}/stop`,{method:'POST'}).catch(()=>{});
+    activeRunId = null;
+  }
   const sendBtn = document.getElementById('sendBtn');
-  if(sendBtn) sendBtn.disabled = false;
+  if(sendBtn) {
+    sendBtn.disabled = false;
+    sendBtn.textContent = '发送';
+    sendBtn.classList.remove('steer-mode');
+  }
   const sb = document.getElementById('stopBtn');
   if(sb){ sb.disabled = true; sb.classList.remove('active'); }
 }
 function handleInputKey(e) {
   // Shift+Enter: newline (let textarea handle it naturally)
   if (e.key === 'Enter' && e.shiftKey) {
-    // Don't preventDefault — let the textarea insert a newline
     return;
   }
 
@@ -1668,7 +2189,20 @@ function handleInputKey(e) {
   }
 }
 
+// Steer mode toggle
+let steerMode = false;
 
+function toggleSteerMode() {
+  steerMode = !steerMode;
+  const btn = document.getElementById('steerToggleBtn');
+  if (steerMode) {
+    btn.classList.add('active');
+    btn.textContent = '引导✓';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '引导';
+  }
+}
 // === FILE UPLOADS ===
 async function handleFileSelect(event) {
   const files = event.target.files;
@@ -1963,10 +2497,30 @@ async function startLlamaMetricsMonitor() {
            const spAvg = document.getElementById('speedPromptAvg');
            const spPredAvg = document.getElementById('speedPredictedAvg');
            if (spAvg) spAvg.textContent = avgPrompt.toFixed(1);
-           if (spPredAvg) spPredAvg.textContent = avgPredicted.toFixed(1);
-         }
+            if (spPredAvg) spPredAvg.textContent = avgPredicted.toFixed(1);
+           }
 
-          // Fetch real context usage from state.db via our API
+           // Update request status card
+           const requestsProcessing = getValue('llamacpp:requests_processing');
+           const requestsDeferred = getValue('llamacpp:requests_deferred');
+           if (requestsProcessing !== null) {
+            const procVal = document.getElementById('reqProcessingVal');
+            const procItem = document.getElementById('reqProcessing');
+            if (procVal) procVal.textContent = Math.round(requestsProcessing);
+            if (procItem) {
+              procItem.classList.toggle('active', requestsProcessing > 0);
+            }
+           }
+           if (requestsDeferred !== null) {
+            const defVal = document.getElementById('reqDeferredVal');
+            const defItem = document.getElementById('reqDeferred');
+            if (defVal) defVal.textContent = Math.round(requestsDeferred);
+            if (defItem) {
+              defItem.classList.toggle('active', requestsDeferred > 0);
+            }
+           }
+
+           // Fetch real context usage from state.db via our API
         try {
           const ctxR = await fetch('/api/context_usage');
           const ctxData = await ctxR.json();
